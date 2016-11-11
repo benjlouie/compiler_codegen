@@ -3,14 +3,14 @@
 void code()
 {
     //Forest's stuff
-    buildVTable();
+    //buildVTable();
 
     //make stuff for builtins
        
     //Make the Linear IR
     makeLinear();
        
-    highLevelInstrSelection();
+    //highLevelInstrSelection();
 
-    printAssembly();
+    //printAssembly();
 }
