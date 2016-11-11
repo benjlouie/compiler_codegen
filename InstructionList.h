@@ -29,7 +29,7 @@ public:
 
 
 private:
-	
+	//Add a thing for a label for the assembly.
 	struct InstructionNode
 	{
 		std::vector<Instruction> instructions;

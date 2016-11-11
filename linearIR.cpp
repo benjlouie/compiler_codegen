@@ -2,6 +2,9 @@
 
 InstructionList &makeMethodIR(Node *feat);
 
+/*
+ * Authors: Matt, Robert, and Ben
+ */
 unordered_map<string,InstructionList &> *makeLinear() {
 
 	unordered_map<string, InstructionList &> *retMap = new unordered_map<string,InstructionList &>;
