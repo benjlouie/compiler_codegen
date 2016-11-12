@@ -10,11 +10,9 @@ void code()
     //Make the Linear IR
     unordered_map<std::string, InstructionList &> *methods = makeLinear();
 
-	(*methods).at("Main.main").printIR();
-
-	for (auto method : (*methods)) {
-		cout << method.first << '\n';
-		method.second.printIR();
+	for (auto it = methods->begin(); it != methods->end(); it++) {
+		cout << it->first << '\n';
+		it->second.printIR();
 	}
        
     //highLevelInstrSelection();
