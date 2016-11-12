@@ -1,13 +1,25 @@
+/**
+ * authors: Forest, Benj
+ */
 #pragma once
 #include <unordered_map>
 #include <vector>
+#include "../compiler_semantics/symbolTable.h"
+#include "../src/ast.h"
+
 using namespace std;
 
-extern vTable *globalVTable;
+extern SymbolTable *globalSymTable;
+extern unordered_map<string, string> globalTypeList;
+
+
+void buildVTable(void);
 
 class vTable {
 public:
-	unordered_map<string, vector<strings>> vtable;
+	unordered_map<string, vector<string>> vtable;
 
-	buildVTable(void);
-}
+	vTable();	
+};
+
+extern vTable *globalVTable;

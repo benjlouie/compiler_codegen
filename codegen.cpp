@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "vTable.h"
 
 void code()
 {
@@ -8,9 +9,9 @@ void code()
     //make stuff for builtins
        
     //Make the Linear IR
-    makeLinear();
+    //makeLinear();
        
-    highLevelInstrSelection();
+    //highLevelInstrSelection();
 
-    printAssembly();
+    //printAssembly();
 }
