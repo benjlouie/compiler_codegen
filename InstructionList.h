@@ -33,6 +33,8 @@ public:
 	};
 
 	void addInstrToTail(Instruction instr);
+
+	void addInstrToTail(std::string instr, std::string src = "", std::string dest = "", ExtraInstrData extraData = INSTR_OK);
 	
 	void addNewNode();
 

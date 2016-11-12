@@ -1,14 +1,33 @@
 #include "linearIR.h"
 
+// IMPORTANT REGISTER INFO
+// volatile registers: (destroyed on function call)
+// rax, rcx, rdx, r8, r9, r10, r11
+// nonvolatile registers: 
+// rbx, rbp, rdi, rsi, rsp, r12, r13, r14, r15
+
+
 InstructionList &makeMethodIR(Node *feat);
+void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
 void methodInit(InstructionList &methodLinear);
 void methodExit(InstructionList &methodLinear);
-void doIntLiteralCode(InstructionList &methodLinear, Node *expression);
+void doIntLiteral(InstructionList &methodLinear, Node *expression);
 void doPlus(InstructionList &methodLinear, Node *expression);
 void doMinus(InstructionList &methodLinear, Node *expression);
 void doMultiply(InstructionList &methodLinear, Node *expression);
 void doDivide(InstructionList &methodLinear, Node *expression);
+void doBool(InstructionList &methodLinear, Node *expression, bool val);
+void doString(InstructionList &methodLinear, Node *expression);
+void doIdentifier(InstructionList &methodLinear, Node *expression);
+void doLessThan(InstructionList &methodLinear, Node *expression);
+void doLessThanEqual(InstructionList &methodLinear, Node *expression);
+void doEqual(InstructionList &methodLinear, Node *expression);
+void doTilde(InstructionList &methodLinear, Node *expression);
+void doNot(InstructionList &methodLinear, Node *expression);
+void doExprSemiList(InstructionList &methodLinear, Node *expression);
+void doNew(InstructionList &methodLinear, Node *expression);
+void doIsVoid(InstructionList &methodLinear, Node *expression);
 
 /*
  * Authors: Matt, Robert, and Ben
@@ -58,6 +77,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 				globalSymTable->enterScope(methName);
 				//(*retMap)[tmp] = makeMethodIR(feature);
 				retMap->emplace(tmp, makeMethodIR(feature));
+				globalSymTable->leaveScope();
 			}
 		}
 		//Go through each method
@@ -115,10 +135,10 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 	switch (expression->type)
 	{
 	case AST_IDENTIFIER:
-		//
+		doIdentifier(methodLinear, expression);
 		break;
 	case AST_INTEGERLITERAL:
-		doIntLiteralCode(methodLinear, expression);
+		doIntLiteral(methodLinear, expression);
 		break;
 	case AST_PLUS:
 		doPlus(methodLinear, expression);
@@ -132,36 +152,80 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 	case AST_DIVIDE:
 		doDivide(methodLinear, expression);
 		break;
+	case AST_TRUE:
+		doBool(methodLinear, expression, true);
+		break;
+	case AST_FALSE:
+		doBool(methodLinear, expression, false);
+		break;
+	case AST_LT:
+		doLessThan(methodLinear, expression);
+		break;
+	case AST_LE:
+		doLessThanEqual(methodLinear, expression);
+		break;
+	case AST_EQUALS:
+		doEqual(methodLinear, expression);
+		break;
+	case AST_STRING:
+		doString(methodLinear, expression);
+		break;
+	case AST_TILDE:
+		doTilde(methodLinear, expression);
+		break;
+	case AST_NOT:
+		doNot(methodLinear, expression);
+		break;
+	case AST_EXPRSEMILIST:
+		doExprSemiList(methodLinear, expression);
+		break;
+	case AST_NEW:
+		doNew(methodLinear, expression);
+		break;
+	case AST_ISVOID:
+		doIsVoid(methodLinear, expression);
+		break;
+	case AST_LARROW:
+		//assignment
 
+		break;
 	default:
 		break;
 	}
 }
 
+
+void makeNew(InstructionList &methodLinear, string valType)
+{
+	//Do object construction
+	methodLinear.addInstrToTail("push", "rbp");
+
+	methodLinear.addInstrToTail("call", valType + "..new"); //type constructor
+
+	methodLinear.addInstrToTail("pop", "rbp");
+}
+
+void doIdentifier(InstructionList &methodLinear, Node *expression)
+{
+
+}
+
 /*
 * Author: Matt, Robert, Ben
 */
-void doIntLiteralCode(InstructionList &methodLinear, Node *expression)
+void doIntLiteral(InstructionList &methodLinear, Node *expression)
 {
 	methodLinear.addNewNode();
-	InstructionList::Instruction instr;
 	methodLinear.addComment("Make new integer with value " + expression->value);
-	//TODO SWITCH TO INTEGER CONSTRUCTOR
-	//How much space we want
-	instr.set("mov", "24", "rdi");
-	methodLinear.addInstrToTail(instr);
-
-	//call Malloc to get space
-	instr.set("call", "malloc");
-	methodLinear.addInstrToTail(instr);
+	
+	//Do integer construction
+	makeNew(methodLinear, expression->valType);
 
 	//mov the correct value into rax's allocated space
-	instr.set("mov", expression->value, "[rax]");
-	methodLinear.addInstrToTail(instr);
+	methodLinear.addInstrToTail("mov", expression->value, "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 	
 	//Move the ref to the new space onto the stack
-	instr.set("push", "rax");
-	methodLinear.addInstrToTail(instr);
+	methodLinear.addInstrToTail("push", "r15");
 }
 
 /*
@@ -176,21 +240,25 @@ void doPlus(InstructionList &methodLinear, Node *expression)
 	//at the very end
 	//pop, pop, add, push
 	methodLinear.addNewNode();
-	InstructionList::Instruction instr;
 	methodLinear.addComment("Add the two integers");
 
 	//get the two values
-	instr.set("pop", "r9");
-	methodLinear.addInstrToTail(instr);
+	methodLinear.addInstrToTail("pop", "r13");
+	methodLinear.addInstrToTail("pop", "r12");
 
-	instr.set("pop", "r8");
-	methodLinear.addInstrToTail(instr);
+	//make new Int for result (in r15)
+	makeNew(methodLinear, expression->valType);
 
-	instr.set("add", "DWORD PTR [r9+16]", "DWORD PTR [r8+16]");
-	methodLinear.addInstrToTail(instr);
+	//temporaries for add instruction
+	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
-	instr.set("push", "r8");
-	methodLinear.addInstrToTail(instr);
+	//TODO: check the 'PTR' part
+	methodLinear.addInstrToTail("add", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "DWORD r10");
+
+	//move result into new object
+	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	methodLinear.addInstrToTail("push", "r15");
 }
 
 /*
@@ -205,22 +273,25 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 	//at the very end
 	//pop, pop,subtract, push
 	methodLinear.addNewNode();
-	InstructionList::Instruction instr;
-	methodLinear.addComment("Add the two integers");
+	methodLinear.addComment("Subtract the two integers");
 
 	//get the two values
-	instr.set("pop", "r9");
-	methodLinear.addInstrToTail(instr);
+	methodLinear.addInstrToTail("pop", "r13");
+	methodLinear.addInstrToTail("pop", "r12");
 
-	instr.set("pop", "r8");
-	methodLinear.addInstrToTail(instr);
+	//make new Int for result (in rax)
+	makeNew(methodLinear, expression->valType);
 
+	//temporaries for add instruction
+	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
-	instr.set("sub", "DWORD PTR [r9+16]", "DWORD PTR [r8+16]");
-	methodLinear.addInstrToTail(instr);
+	//TODO: check the 'PTR' part
+	methodLinear.addInstrToTail("sub", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "DWORD r10");
 
-	instr.set("push", "r8");
-	methodLinear.addInstrToTail(instr);
+	//move result into new object
+	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	methodLinear.addInstrToTail("push", "r15");
 }
 
 /*
@@ -235,21 +306,26 @@ void doMultiply(InstructionList &methodLinear, Node *expression)
 	//at the very end
 	//pop, pop, multiply, push
 	methodLinear.addNewNode();
-	InstructionList::Instruction instr;
-	methodLinear.addComment("Add the two integers");
+	methodLinear.addComment("Multiply the two integers");
 
 	//get the two values
-	instr.set("pop", "r9");
-	methodLinear.addInstrToTail(instr);
+	methodLinear.addInstrToTail("pop", "r13");
+	methodLinear.addInstrToTail("pop", "r12");
 
-	instr.set("pop", "r8");
-	methodLinear.addInstrToTail(instr);
+	//make new Int for result (in rax)
+	makeNew(methodLinear, expression->valType);
 
-	instr.set("imul", "DWORD PTR [r9+16]", "DWORD PTR [r8+16]");
-	methodLinear.addInstrToTail(instr);
+	//temporaries for add instruction
+	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
-	instr.set("push", "r8");
-	methodLinear.addInstrToTail(instr);
+	//TODO: check the 'PTR' part
+	methodLinear.addInstrToTail("imul", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "DWORD r10");
+
+	//move result into new object
+	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	methodLinear.addInstrToTail("push", "r15");
+	
 }
 
 /*
@@ -264,28 +340,265 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 	//at the very end
 	//pop, pop, divide, push
 	methodLinear.addNewNode();
-	InstructionList::Instruction instr;
-	methodLinear.addComment("Add the two integers");
+	methodLinear.addComment("Divide the two integers");
 
 	//get the two values
-	instr.set("pop", "r9");
-	methodLinear.addInstrToTail(instr);
+	methodLinear.addInstrToTail("pop", "r13");
+	methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rbx");
 	
-	instr.set("mov", "[r9+16]", "rbx");
-	methodLinear.addInstrToTail(instr);
+	methodLinear.addInstrToTail("pop", "r12");
+	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rax");
 
-	instr.set("pop", "r8");
-	methodLinear.addInstrToTail(instr);
+	//result in rax
+	methodLinear.addInstrToTail("idiv", "ebx");
+	methodLinear.addInstrToTail("mov","rax","r14");
 
-	instr.set("mov", "[r8+16]", "rax");
-	methodLinear.addInstrToTail(instr);
+	//make new object (Int)
+	makeNew(methodLinear, expression->valType);
+	//put div result in Int
+	methodLinear.addInstrToTail("mov", "r14", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 
-	instr.set("idiv", "ebx");
-	methodLinear.addInstrToTail(instr);
-
-	instr.set("mov","rax","[r8+16]");
-	methodLinear.addInstrToTail(instr);
-
-	instr.set("push", "r8");
-	methodLinear.addInstrToTail(instr);
+	methodLinear.addInstrToTail("push", "r15");
+	
 }
+
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doBool(InstructionList &methodLinear, Node *expression, bool val)
+{
+	methodLinear.addNewNode();
+	methodLinear.addComment("Make new bool with value: " + std::to_string(val));
+
+	//Do Bool construction
+	makeNew(methodLinear, expression->valType);
+
+	//mov the correct value into rax's allocated space
+	methodLinear.addInstrToTail("mov", std::to_string(val), "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	//Move the ref to the new space onto the stack
+	methodLinear.addInstrToTail("push", "r15");
+}
+
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doLessThan(InstructionList &methodLinear, Node *expression)
+{
+	auto children = expression->getChildren();
+	makeExprIR_recursive(methodLinear, (Node *)children[0]);
+	makeExprIR_recursive(methodLinear, (Node *)children[1]);
+
+	//at the very end
+	//pop, pop, LT, push
+	methodLinear.addNewNode();
+	methodLinear.addComment("Compare two integers LT");
+
+	//get the two values
+	methodLinear.addInstrToTail("pop", "r13");
+	methodLinear.addInstrToTail("pop", "r12");
+
+	//TODO: write lessthan handler
+	methodLinear.addInstrToTail("push", "rbp");
+	methodLinear.addInstrToTail("call", "LT..Handler");
+	methodLinear.addInstrToTail("pop", "rbp");
+
+	methodLinear.addInstrToTail("push", "r15");
+}
+
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doLessThanEqual(InstructionList &methodLinear, Node *expression)
+{
+	auto children = expression->getChildren();
+	makeExprIR_recursive(methodLinear, (Node *)children[0]);
+	makeExprIR_recursive(methodLinear, (Node *)children[1]);
+
+	//at the very end
+	//pop, pop, LT, push
+	methodLinear.addNewNode();
+	methodLinear.addComment("Compare two integers LTE");
+
+	//get the two values
+	methodLinear.addInstrToTail("pop", "r13");
+	methodLinear.addInstrToTail("pop", "r12");
+
+	//TODO: write lessthanEqual handler
+	methodLinear.addInstrToTail("push", "rbp");
+	methodLinear.addInstrToTail("call", "LTE..Handler");
+	methodLinear.addInstrToTail("pop", "rbp");
+
+	methodLinear.addInstrToTail("push", "r15");
+}
+
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doEqual(InstructionList &methodLinear, Node *expression)
+{
+	auto children = expression->getChildren();
+	makeExprIR_recursive(methodLinear, (Node *)children[0]);
+	makeExprIR_recursive(methodLinear, (Node *)children[1]);
+
+	//at the very end
+	//pop, pop, LT, push
+	methodLinear.addNewNode();
+	methodLinear.addComment("Compare two objects Equal");
+
+	//get the two values
+	methodLinear.addInstrToTail("pop", "r13");
+	methodLinear.addInstrToTail("pop", "r12");
+
+	//TODO: write lessthan handler
+	methodLinear.addInstrToTail("push", "rbp");
+	methodLinear.addInstrToTail("call", "Equal..Handler");
+	methodLinear.addInstrToTail("pop", "rbp");
+
+	methodLinear.addInstrToTail("push", "r15");
+}
+
+/*
+ * Forest, Benji, Robert, Ben, Matt
+ */
+void doString(InstructionList &methodLinear, Node *expression)
+{
+	methodLinear.addNewNode();
+	methodLinear.addComment("Make new String with value: " + expression->value);
+
+
+	//Do String construction
+	makeNew(methodLinear, expression->valType);
+
+	//add string to data table
+	size_t stringNum = globalStringTable.size();
+	globalStringTable[stringNum] = expression->value;
+	string stringName = ".string" + std::to_string(stringNum);
+
+	//mov the string ptr into new object
+	methodLinear.addInstrToTail("mov", stringName, "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	//Move the ref to the new obj onto the stack
+	methodLinear.addInstrToTail("push", "r15");
+}
+
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doTilde(InstructionList &methodLinear, Node *expression)
+{
+	//Get whatever we're supposed to negate
+	makeExprIR_recursive(methodLinear, (Node *)expression->getChildren()[0]);
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("Negate an integer");
+	
+	//Put the reference in a register
+	methodLinear.addInstrToTail("pop", "rbx");
+
+	//put the value into rax
+	methodLinear.addInstrToTail("mov", "[rbx+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rax");
+
+	//not the value and add 1 (2's complement)
+	methodLinear.addInstrToTail("not", "eax");
+
+	methodLinear.addInstrToTail("inc", "eax");
+
+	makeNew(methodLinear, expression->valType);
+
+	//put back
+	methodLinear.addInstrToTail("mov", "rax", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	methodLinear.addInstrToTail("push", "rbx");
+}
+
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doNot(InstructionList &methodLinear, Node *expression)
+{
+
+	//Get whatever we're supposed to not
+	makeExprIR_recursive(methodLinear, (Node *)expression->getChildren()[0]);
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("Not-ing a bool with value" + expression->value);
+
+	//Get the value into a regeister
+	methodLinear.addInstrToTail("pop", "rbx");
+
+	methodLinear.addInstrToTail("mov", "[rbx+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rax");
+
+	//XOR the value with 1 - 0^1 = 1, 1^1 = 0
+	methodLinear.addInstrToTail("xor", "1", "eax");
+
+	makeNew(methodLinear, expression->valType);
+
+	//Put it back
+	methodLinear.addInstrToTail("mov", "rax", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	methodLinear.addInstrToTail("push", "r15");
+
+}
+
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doExprSemiList(InstructionList &methodLinear, Node *expression)
+{
+	auto children = expression->getChildren();
+	size_t size = children.size();
+	methodLinear.addNewNode();
+	methodLinear.addComment("Start of new block expressions.");
+
+	for (size_t i = 0; i < size - 1; i++) {
+		makeExprIR_recursive(methodLinear, (Node *)children[i]);
+		methodLinear.addInstrToTail("pop", "rax");
+	}
+
+	makeExprIR_recursive(methodLinear, (Node *)children[size - 1]);
+
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("End of block expressions.");
+}
+
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doNew(InstructionList &methodLinear, Node *expression)
+{
+	methodLinear.addNewNode();
+	methodLinear.addComment("Making a new object of type " + expression->valType);
+	
+	makeNew(methodLinear, expression->valType);
+}
+
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doIsVoid(InstructionList &methodLinear, Node *expression)
+{
+	//Get whatever we're supposed to not
+	makeExprIR_recursive(methodLinear, (Node *)expression->getChildren()[0]);
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("Check if pointer is void");
+	
+	//get pointer
+	methodLinear.addInstrToTail("pop", "rbx");
+
+	methodLinear.addInstrToTail("cmp", "0", "rbx");
+
+	methodLinear.addInstrToTail("sete", "rax");
+
+	makeNew(methodLinear, "Boolean");
+	
+	//Put it back
+	methodLinear.addInstrToTail("mov", "rax", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	methodLinear.addInstrToTail("push", "r15");
+}
+
+
+

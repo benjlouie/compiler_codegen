@@ -2,8 +2,11 @@
 
 void code()
 {
+	//generate offsets for symbolTable variables
+	globalSymTable->generateOffsets();
+
     //Forest's stuff
-    //buildVTable();
+    buildVTable();
 
     //make stuff for builtins
        

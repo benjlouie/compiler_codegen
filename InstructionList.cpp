@@ -9,6 +9,12 @@ void InstructionList::addInstrToTail(Instruction instr) {
 	tail->instructions.push_back(instr);
 }
 
+void InstructionList::addInstrToTail(std::string instr, std::string src, std::string dest, ExtraInstrData extraData) {
+	Instruction inst;
+	inst.set(instr, src, dest, extraData);
+	this->addInstrToTail(inst);
+}
+
 /* Simply adds a new node onto the tail of the list.
  * Makes a new linked list if one doesn't exist.
  *
@@ -54,11 +60,14 @@ void InstructionList::printIR() {
 
 		for (auto instr : cur->instructions) {
 			std::cout << instr.instruction;
-			if (instr.src != "") {
-				std::cout << "\t" << instr.src;
-			}
 			if (instr.dest != "") {
-				std::cout << ", " << instr.dest;
+				std::cout << "\t" << instr.dest;
+				if (instr.src != "") {
+					std::cout << ", " << instr.src;
+				}
+			}
+			else if (instr.src != "") {
+				std::cout << "\t" << instr.src;
 			}
 			std::cout << '\n';
 		}
@@ -69,3 +78,4 @@ void InstructionList::printIR() {
 
 
 }
+
