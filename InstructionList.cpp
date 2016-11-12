@@ -16,6 +16,7 @@ void InstructionList::addInstrToTail(Instruction instr) {
  */
 void InstructionList::addNewNode() {
 	InstructionNode *newNode = new InstructionNode();
+	size++; //adding a node either way
 	if (head == nullptr) {
 		head = newNode;
 		tail = newNode;
@@ -25,4 +26,46 @@ void InstructionList::addNewNode() {
 	newNode->prev = tail;
 	tail->next = newNode;
 	tail = newNode;	
+}
+
+/*
+* Author: Matt, Robert, Ben
+*/
+void InstructionList::addComment(std::string comment) {
+	tail->comment += ";" + comment + "\n";
+}
+
+InstructionList::InstructionList() {
+
+}
+
+InstructionList::~InstructionList() {
+
+}
+
+/* 
+ * Author: Ben Louie
+ */
+void InstructionList::printIR() {
+	InstructionNode * cur = head;
+
+	while (cur) {
+		std::cout << cur->comment;
+
+		for (auto instr : cur->instructions) {
+			std::cout << instr.instruction;
+			if (instr.src != "") {
+				std::cout << "\t" << instr.src;
+			}
+			if (instr.dest != "") {
+				std::cout << ", " << instr.dest;
+			}
+			std::cout << '\n';
+		}
+		std::cout << "============================================" << '\n';
+
+		cur = cur->next;
+	}
+
+
 }

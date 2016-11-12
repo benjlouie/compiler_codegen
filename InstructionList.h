@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include<vector>
 #include<string>
 
@@ -19,12 +20,25 @@ public:
 		std::string src;
 		std::string dest;
 		ExtraInstrData extraData;
+
+		/*
+		 * Author: Matt, Robert, Ben
+		 */
+		void set(std::string instr, std::string src = "", std::string dest = "", ExtraInstrData extraData = INSTR_OK) {
+			this->instruction = instr;
+			this->src = src;
+			this->dest = dest;
+			this->extraData = extraData;
+		}
 	};
 
 	void addInstrToTail(Instruction instr);
 	
 	void addNewNode();
 
+	void addComment(std::string comment);
+
+	void printIR();
 
 
 
@@ -37,22 +51,15 @@ private:
 		std::string postlabel;
 		InstructionNode *next;
 		InstructionNode *prev;
+		std::string comment;
 
 		InstructionNode() {
 			next = nullptr;
 			prev = nullptr;
 		}
-
 	} *head, *tail;
 
 	size_t size;
 
 };
 
-InstructionList::InstructionList()
-{
-}
-
-InstructionList::~InstructionList()
-{
-}
