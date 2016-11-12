@@ -1,7 +1,9 @@
+#pragma once
 #include <iostream>
 #include <unordered_map>
 #include "../src/ast.h"
 #include "../compiler_semantics/symbolTable.h"
+#include "linearIR.h"
 #include "vTable.h"
 
 extern int numErrors;
