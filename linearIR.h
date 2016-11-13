@@ -2,6 +2,7 @@
 #include<unordered_map>
 #include<vector>
 #include<string>
+#include <stack>
 #include "../src/ast.h"
 #include "../compiler_semantics/symbolTable.h"
 #include "InstructionList.h"
@@ -13,6 +14,8 @@ extern Node *root;
 extern SymbolTable *globalSymTable;
 extern unordered_map<string, string> globalTypeList;
 extern unordered_map<size_t, string> globalStringTable;
+extern int whileLabelCount;
+extern int ifLabelCount;
 
 
 unordered_map<string,InstructionList &> *makeLinear();

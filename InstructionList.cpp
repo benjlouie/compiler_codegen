@@ -41,6 +41,14 @@ void InstructionList::addComment(std::string comment) {
 	tail->comment += ";" + comment + "\n";
 }
 
+void InstructionList::addPreLabel(std::string preLabel) {
+	tail->prelabel = preLabel;
+}
+
+void InstructionList::addPostLabel(std::string postLabel) {
+	tail->postlabel = postLabel;
+}
+
 InstructionList::InstructionList() {
 
 }
@@ -57,6 +65,9 @@ void InstructionList::printIR() {
 
 	while (cur) {
 		std::cout << cur->comment;
+		if (cur->prelabel != "") {
+			std::cout << cur->prelabel << '\n';
+		}
 
 		for (auto instr : cur->instructions) {
 			std::cout << instr.instruction;
@@ -70,6 +81,9 @@ void InstructionList::printIR() {
 				std::cout << "\t" << instr.src;
 			}
 			std::cout << '\n';
+		}
+		if (cur->postlabel != "") {
+			std::cout << cur->postlabel << '\n';
 		}
 		std::cout << "============================================" << '\n';
 

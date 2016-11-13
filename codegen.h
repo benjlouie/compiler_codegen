@@ -9,6 +9,8 @@
 #include "vTable.h"
 
 extern int numErrors;
+extern int whileLabelCount;
+extern int ifLabelCount;
 extern Node *root;
 extern SymbolTable *globalSymTable;
 extern unordered_map<string,string> globalTypeList;

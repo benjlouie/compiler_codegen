@@ -40,6 +40,10 @@ public:
 
 	void addComment(std::string comment);
 
+	void addPreLabel(std::string preLabel);
+
+	void addPostLabel(std::string postLabel);
+
 	void printIR();
 
 

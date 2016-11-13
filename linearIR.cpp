@@ -6,12 +6,63 @@
 // nonvolatile registers: 
 // rbx, rbp, rdi, rsi, rsp, r12, r13, r14, r15
 
+// IMPORTANT CALL INFO
+// caller responsibility
+//// push rbp
+//// push formals (left to right)
+//// push self
+//// call function
+//// pop (self)
+//// pop (formals)
+//// pop rbp
+//// mov rbp rsp
+// callee responsibility
+//// return value in r15
+
+
+class StackVariables {
+public:
+	StackVariables() {
+		formalOffset = 8;
+		varOffset = -8;
+	}
+	~StackVariables() {
+
+	}
+
+	void addFormal(std::string formalName) {
+		vars[formalName].push(formalOffset);
+		formalOffset += 8;
+	}
+	void addVar(std::string varName) {
+		vars[varName].push(varOffset);
+		varOffset -= 8;
+	}
+	void removeVar(std::string varName) {
+		vars[varName].pop();
+		varOffset += 8;
+	}
+
+	bool checkVar(std::string name) {
+		return vars.count(name) > 0;
+	}
+	int getOffset(std::string name) {
+		return vars[name].top();
+	}
+
+private:
+	std::unordered_map<std::string, std::stack<int>> vars;
+	int formalOffset;
+	int varOffset;
+};
+
+StackVariables *vars;
 
 InstructionList &makeMethodIR(Node *feat);
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
-void methodInit(InstructionList &methodLinear);
-void methodExit(InstructionList &methodLinear);
+void methodInit(InstructionList &methodLinear, Node *feature);
+void methodExit(InstructionList &methodLinear, Node *feature);
 void doIntLiteral(InstructionList &methodLinear, Node *expression);
 void doPlus(InstructionList &methodLinear, Node *expression);
 void doMinus(InstructionList &methodLinear, Node *expression);
@@ -28,6 +79,9 @@ void doNot(InstructionList &methodLinear, Node *expression);
 void doExprSemiList(InstructionList &methodLinear, Node *expression);
 void doNew(InstructionList &methodLinear, Node *expression);
 void doIsVoid(InstructionList &methodLinear, Node *expression);
+void doWhile(InstructionList &methodLinear, Node *expression);
+void doIf(InstructionList &methodLinear, Node *expression);
+void doAssign(InstructionList &methodLinear, Node *expression);
 
 /*
  * Authors: Matt, Robert, and Ben
@@ -65,8 +119,6 @@ unordered_map<string,InstructionList &> *makeLinear()
 		}
 
 
-
-
 		for (Tree *tFeature : features->getChildren()) {
 			Node *feature = (Node *)tFeature;
 			
@@ -74,14 +126,10 @@ unordered_map<string,InstructionList &> *makeLinear()
 			if (feature->type == AST_FEATURE_METHOD) {
 				std::string methName = ((Node *)feature->getChildren()[0])->value;
 				std::string tmp = className + "." + methName;
-				globalSymTable->enterScope(methName);
-				//(*retMap)[tmp] = makeMethodIR(feature);
+				//main recursive call
 				retMap->emplace(tmp, makeMethodIR(feature));
-				globalSymTable->leaveScope();
 			}
 		}
-		//Go through each method
-
 	}
 
 	return retMap;
@@ -100,13 +148,13 @@ InstructionList &makeMethodIR(Node *feat)
 	Node *expression = (Node *)featureData[3];
 
 	//method initialization
-	methodInit(*methodLinear);
+	methodInit(*methodLinear, feat);
 	
 	//go through method expressions
 	makeExprIR_recursive(*methodLinear, expression);
 
 	//method exit
-	methodExit(*methodLinear);
+	methodExit(*methodLinear, expression);
 
 	return *methodLinear;
 }
@@ -114,15 +162,31 @@ InstructionList &makeMethodIR(Node *feat)
 /*
 * Author: Matt, Robert, Ben
 */
-void methodInit(InstructionList &methodLinear)
+void methodInit(InstructionList &methodLinear, Node *feature)
 {
 	//do method initialization
+	methodLinear.addNewNode();
+	methodLinear.addComment("start method");
+	methodLinear.addInstrToTail("mov", "rsp", "rbp");
+
+	vars = new StackVariables;
+	Node * formals = (Node *)feature->getChildren()[1];
+
+	vars->addFormal("self");
+
+	// add formals
+	auto children = formals->getChildren();
+	for (auto it = children.rbegin(); it != children.rend(); it++) {
+		Node *formal = (Node *)*it;
+		Node *formalID = (Node *)formal->getChildren()[0];
+		vars->addFormal(formalID->value);
+	}
 }
 
 /*
 * Author: Matt, Robert, Ben
 */
-void methodExit(InstructionList &methodLinear)
+void methodExit(InstructionList &methodLinear, Node *feature)
 {
 	//do method exit instructions
 }
@@ -187,7 +251,13 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 		break;
 	case AST_LARROW:
 		//assignment
-
+		doAssign(methodLinear, expression);
+		break;
+	case AST_WHILE:
+		doWhile(methodLinear, expression);
+		break;
+	case AST_IF:
+		doIf(methodLinear, expression);
 		break;
 	default:
 		break;
@@ -600,5 +670,109 @@ void doIsVoid(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("push", "r15");
 }
 
+/*
+* Forest, Benji, Robert, Ben, Matt
+*/
+void doWhile(InstructionList &methodLinear, Node *expression) {
+	int countSave = whileLabelCount;
 
+	methodLinear.addNewNode();
+	methodLinear.addComment("Start of while loop" + std::to_string(countSave));
+	whileLabelCount++;
+	//add label for jump to redo loop
+	methodLinear.addInstrToTail("While_Condition" + std::to_string(countSave) + ":");
+	
+	//write code for condition
+	auto children = expression->getChildren();
+	makeExprIR_recursive(methodLinear,(Node*)children[0]);
+	methodLinear.addInstrToTail("pop", "rax");
+	methodLinear.addInstrToTail("mov", "[rax+" + std::to_string(DEFAULT_VAR_OFFSET) + "]","rax");
+	methodLinear.addInstrToTail("cmp", "rax",std::to_string(false));
 
+	//add jump to end of while if condition fails
+	methodLinear.addInstrToTail("je", "While_End" + std::to_string(countSave));
+
+	//add code for expression
+	makeExprIR_recursive(methodLinear, (Node*)children[1]);
+	methodLinear.addInstrToTail("pop", "rax");
+
+	//add jump to go back to redo condition and maybe loop
+	methodLinear.addInstrToTail("jmp", "While_Condition" + std::to_string(countSave));
+
+	//add label to jump to if condition fails and push 0 since while loops return void
+	methodLinear.addInstrToTail("While_End" + std::to_string(countSave) + ":");
+	methodLinear.addInstrToTail("push", "0");
+}
+
+void doIf(InstructionList &methodLinear, Node *expression) {
+	int countSave = ifLabelCount;
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("Start of if statement" + std::to_string(countSave));
+	ifLabelCount++;
+
+	//write code for conditional
+	auto children = expression->getChildren();
+	makeExprIR_recursive(methodLinear, (Node*)children[0]);
+	methodLinear.addInstrToTail("pop", "rax");
+	methodLinear.addInstrToTail("mov", "[rax+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rax");
+	methodLinear.addInstrToTail("cmp", "rax", std::to_string(false));
+	
+	//write jump to go to else
+	methodLinear.addInstrToTail("je", "If_Else" + std::to_string(countSave));
+
+	//write code for then
+	makeExprIR_recursive(methodLinear, (Node*)children[1]);
+
+	//write jump to go to end
+	methodLinear.addInstrToTail("jmp", "If_End" + std::to_string(countSave));
+
+	//write label for else
+	methodLinear.addInstrToTail("If_Else" + std::to_string(countSave) + ":");
+
+	//write code for else
+	makeExprIR_recursive(methodLinear, (Node*)children[2]);
+
+	//write label for end
+	methodLinear.addInstrToTail("If_End" + std::to_string(countSave) + ":");
+}
+
+void doAssign(InstructionList &methodLinear, Node *expression)
+{
+	auto children = expression->getChildren();
+	Node *assignID = (Node *)children[0];
+	Node *assignExpr = (Node *)children[1];
+	std::string &varName = assignID->value;
+
+	//run expression
+	makeExprIR_recursive(methodLinear, assignExpr);
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("Assign " + varName);
+	//pop result into rax
+	methodLinear.addInstrToTail("pop", "rax");
+	//assign result to correct var
+	if (vars->checkVar(varName)) {
+		// local (on stack)
+		int stackOffset = vars->getOffset(varName);
+
+		//set result to correct var in stack
+		if (stackOffset < 0) {
+			methodLinear.addInstrToTail("mov", "rax", "[rbp-" + std::to_string(-stackOffset) + "]");
+		}
+		else {
+			methodLinear.addInstrToTail("mov", "rax", "[rbp+" + std::to_string(stackOffset) + "]");
+		}
+
+	}
+	else {
+		// in self
+		int selfMemOffset = DEFAULT_VAR_OFFSET + globalSymTable->getVariable(varName)->offset;
+		int selfVarOffset = vars->getOffset("self");
+
+		//get self ptr
+		methodLinear.addInstrToTail("mov", "[rbp+" + to_string(selfVarOffset) + "]", "r12");
+		//move result into self at var offset
+		methodLinear.addInstrToTail("mov", "rax", "[r12+" + std::to_string(selfMemOffset) + "]");
+	}
+}
