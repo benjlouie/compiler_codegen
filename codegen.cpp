@@ -4,6 +4,8 @@ void code()
 {
 	//generate offsets for symbolTable variables
 	globalSymTable->generateOffsets();
+	//get number of locals at each level scope level
+	globalSymTable->countLocals();
 
     //Forest's stuff
     buildVTable();

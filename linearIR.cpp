@@ -40,7 +40,9 @@ public:
 	}
 	void removeVar(std::string varName) {
 		vars[varName].pop();
-		varOffset += 8;
+		if (vars[varName].size() == 0) {
+			vars.erase(varName);
+		}
 	}
 
 	bool checkVar(std::string name) {
@@ -82,6 +84,7 @@ void doIsVoid(InstructionList &methodLinear, Node *expression);
 void doWhile(InstructionList &methodLinear, Node *expression);
 void doIf(InstructionList &methodLinear, Node *expression);
 void doAssign(InstructionList &methodLinear, Node *expression);
+void doLet(InstructionList &methodLinear, Node *expression);
 
 /*
  * Authors: Matt, Robert, and Ben
@@ -154,7 +157,7 @@ InstructionList &makeMethodIR(Node *feat)
 	makeExprIR_recursive(*methodLinear, expression);
 
 	//method exit
-	methodExit(*methodLinear, expression);
+	methodExit(*methodLinear, feat);
 
 	return *methodLinear;
 }
@@ -168,6 +171,16 @@ void methodInit(InstructionList &methodLinear, Node *feature)
 	methodLinear.addNewNode();
 	methodLinear.addComment("start method");
 	methodLinear.addInstrToTail("mov", "rsp", "rbp");
+
+	//TODO: Improve local variables so we don't have to allocate space for all of them at the same time
+	//set up space for local vars
+	std::string methodName = ((Node *)feature->getChildren()[0])->value;
+	globalSymTable->enterScope(methodName);
+	int space = globalSymTable->cur->numLocals * 8;
+	globalSymTable->leaveScope();
+	methodLinear.addInstrToTail("mov", std::to_string(space), "r12");
+	methodLinear.addInstrToTail("sub", "rsp", "r12");
+	methodLinear.addInstrToTail("mov", "r12", "rsp");
 
 	vars = new StackVariables;
 	Node * formals = (Node *)feature->getChildren()[1];
@@ -189,6 +202,23 @@ void methodInit(InstructionList &methodLinear, Node *feature)
 void methodExit(InstructionList &methodLinear, Node *feature)
 {
 	//do method exit instructions
+	methodLinear.addNewNode();
+	methodLinear.addComment("End of method");
+
+	//put result of method into return register
+	methodLinear.addInstrToTail("pop", "r15");
+
+	//remove space for local vars
+	std::string methodName = ((Node *)feature->getChildren()[0])->value;
+	globalSymTable->enterScope(methodName);
+	int space = globalSymTable->cur->numLocals * 8;
+	globalSymTable->leaveScope();
+	methodLinear.addInstrToTail("mov", std::to_string(space), "r12");
+	methodLinear.addInstrToTail("add", "rsp", "r12");
+	methodLinear.addInstrToTail("mov", "r12", "rsp");
+
+	//call return
+	methodLinear.addInstrToTail("ret");
 }
 
 /*
@@ -259,6 +289,13 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 	case AST_IF:
 		doIf(methodLinear, expression);
 		break;
+	case AST_LET:
+		doLet(methodLinear, expression);
+		break;
+	case AST_CASESTATEMENT:
+		break;
+	case AST_CASE:
+		break;
 	default:
 		break;
 	}
@@ -277,7 +314,34 @@ void makeNew(InstructionList &methodLinear, string valType)
 
 void doIdentifier(InstructionList &methodLinear, Node *expression)
 {
+	std::string varName = expression->value;
 
+	methodLinear.addNewNode();
+	methodLinear.addComment("get variable " + varName);
+
+	//push var onto stack
+	if (vars->checkVar(varName)) {
+		// local (on stack)
+		int stackOffset = vars->getOffset(varName);
+
+		//push var onto stack
+		if (stackOffset < 0) {
+			methodLinear.addInstrToTail("push", "[rbp-" + std::to_string(-stackOffset) + "]");
+		}
+		else {
+			methodLinear.addInstrToTail("push", "[rbp+" + std::to_string(stackOffset) + "]");
+		}
+
+	}
+	else {
+		// in self
+		int selfMemOffset = DEFAULT_VAR_OFFSET + globalSymTable->getVariable(varName)->offset;
+		int selfVarOffset = vars->getOffset("self");
+
+		//push pointer in self onto stack
+		methodLinear.addInstrToTail("mov", "[rbp+" + to_string(selfVarOffset) + "]", "r12");
+		methodLinear.addInstrToTail("push", "[r12+" + to_string(selfMemOffset) + "]");
+	}
 }
 
 /*
@@ -775,4 +839,47 @@ void doAssign(InstructionList &methodLinear, Node *expression)
 		//move result into self at var offset
 		methodLinear.addInstrToTail("mov", "rax", "[r12+" + std::to_string(selfMemOffset) + "]");
 	}
+}
+
+void doLet(InstructionList &methodLinear, Node *expression)
+{
+	auto children = expression->getChildren();
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("Start of let");
+
+	Node *idTypeExpr = (Node *)children[0];
+
+	//do idTypeExpr first
+	auto typeExprKids = idTypeExpr->getChildren();
+	string &varName = ((Node *)typeExprKids[0])->value;
+	string &varType = ((Node *)typeExprKids[1])->value;
+	Node *varExpr = (Node *)typeExprKids[2];
+
+	//recurse into idTypeExpr expression
+	makeExprIR_recursive(methodLinear, varExpr);
+	vars->addVar(varName);
+	if (varExpr->type != AST_NULL) {
+		//assign to variable, already on the stack from recursive call
+		//pop and move result into variable position
+		methodLinear.addInstrToTail("pop", "r12");
+		methodLinear.addInstrToTail("mov", "r12", "[rbp-" + std::to_string(-vars->getOffset(varName)) + "]");
+	}
+	else {
+		//init value to void
+		methodLinear.addInstrToTail("mov", "0", "[rbp-" + std::to_string(-vars->getOffset(varName)) + "]");
+	}
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("start of let in expr");
+
+	//recurse to expr
+	Node *letExpr = (Node *)children[1];
+	makeExprIR_recursive(methodLinear, letExpr);
+
+	//remove variable from locals
+	methodLinear.addNewNode();
+	methodLinear.addComment("end of let expr");
+
+	vars->removeVar(varName);
 }
