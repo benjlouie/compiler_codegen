@@ -399,7 +399,7 @@ InstructionList &makeStringsIR()
 		stringIR->addInstrToTail(".ascii", "\"" + vtableEntry.first + "\"");
 	}
 
-	for (int i = 0; i < globalStringTable.size(); i++)
+	for (size_t i = 0; i < globalStringTable.size(); i++)
 	{
 		name = globalStringTable[i];
 		stringIR->addInstrToTail(".string" + std::to_string(i) + ":", "", "", InstructionList::INSTR_LABEL);

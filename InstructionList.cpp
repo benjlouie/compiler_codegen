@@ -50,7 +50,9 @@ void InstructionList::addPostLabel(std::string postLabel) {
 }
 
 InstructionList::InstructionList() {
-
+	head = nullptr;
+	tail = nullptr;
+	size = 0;
 }
 
 InstructionList::~InstructionList() {

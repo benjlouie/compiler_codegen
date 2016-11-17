@@ -32,7 +32,7 @@ void dfs_buildVTable(vector<string> curEntry, string clsName) {
 	entry.push_back("className" + to_string(entry_count++));
 	entry.push_back(clsName + "..new");
 	if (clsName != "Object") {
-		for (int i = 2; i < curEntry.size(); i++) {
+		for (size_t i = 2; i < curEntry.size(); i++) {
 			entry.push_back(curEntry[i]);
 		}
 		vector<string> methods = globalSymTable->getMethodNames();
