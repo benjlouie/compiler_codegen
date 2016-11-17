@@ -61,6 +61,10 @@ private:
 StackVariables *vars;
 
 InstructionList &makeMethodIR(Node *feat);
+InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *attributes);
+InstructionList &makeEntryPointIR();
+InstructionList &makeIntIR();
+
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
 void methodInit(InstructionList &methodLinear, Node *feature);
@@ -86,6 +90,8 @@ void doIf(InstructionList &methodLinear, Node *expression);
 void doAssign(InstructionList &methodLinear, Node *expression);
 void doLet(InstructionList &methodLinear, Node *expression);
 
+void objectInit(InstructionList &classLinear, string name, int tag, size_t size);
+
 /*
  * Authors: Matt, Robert, and Ben
  */
@@ -93,6 +99,9 @@ unordered_map<string,InstructionList &> *makeLinear()
 {
 
 	unordered_map<string, InstructionList &> *retMap = new unordered_map<string,InstructionList &>;
+
+	//a mapping from classes to their features
+	unordered_map<string, vector<Node *>> *attributes = new unordered_map<string, vector<Node *>>;
 
 	globalSymTable->goToRoot();
 	
@@ -132,10 +141,219 @@ unordered_map<string,InstructionList &> *makeLinear()
 				//main recursive call
 				retMap->emplace(tmp, makeMethodIR(feature));
 			}
+			else if (feature->type == AST_FEATURE_ATTRIBUTE) {
+				(*attributes)[className].push_back(feature);
+			}
 		}
 	}
 
+	//Need to traverse each class again, the first time we had to gather
+	//each attribute now we can make initializers for each class
+	classNodes = root->getChildren();
+	for (Tree *tchild : classNodes) {
+		Node *child = (Node *)tchild;
+
+		auto classDescNodes = child->getChildren();
+		string className = ((Node *)classDescNodes[0])->value;
+
+		Node* features = ((Node *)classDescNodes[2]);
+
+		//enter proper scope for class and go to correct scope
+		globalSymTable->goToRoot();
+
+		string curClass = className;
+		vector<string> inheritanceList;
+		while (curClass != "Object") {
+			inheritanceList.push_back(curClass);
+			curClass = globalTypeList[curClass];
+		}
+		//traverse to class scope
+		for (auto it = inheritanceList.rbegin(); it < inheritanceList.rend(); it++) {
+			globalSymTable->enterScope(*it);
+		}
+
+		retMap->emplace(className + "..new", makeClassIR(child, attributes));
+	}
+
+	retMap->emplace("_start", makeEntryPointIR());
+
+	//Default classes
+	retMap->emplace("Int", makeIntIR());
+	/*todo*/
+	//retMap->emplace("IO", makeIOIR());
+	//retMap->emplace("Object", makeObjectIR());
+	//retMap->emplace("String", makeObjectIR());
+	//retMap->emplace("Bool", makeBoolIR());
+
 	return retMap;
+}
+
+/*
+* Author: Forest
+* Adds the entry point for the assembly
+*/
+InstructionList &makeEntryPointIR() 
+{
+	InstructionList *entry = new InstructionList;
+
+	entry->addNewNode();
+	entry->addComment("Start point of the program");
+	makeNew(*entry, "Main");
+
+	//call Main.main()
+	entry->addInstrToTail("push", "rbp");
+	entry->addInstrToTail("push", "r15");
+	entry->addInstrToTail("call", "Main.main");
+	
+	//return 0 for successful execution
+	entry->addInstrToTail("mov", "0", "rdi");
+	entry->addInstrToTail("call", "exit");
+
+	return *entry;
+}
+
+/*
+* Author: Forest
+*/
+InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *attributes)
+{
+	InstructionList *classLinear = new InstructionList;
+	string className = ((Node *)cls->getChildren()[0])->value;
+	//handle return address
+	classLinear->addNewNode();
+	classLinear->addComment("Class " + className + " Initialization");
+	classLinear->addInstrToTail("push", "rbp");
+	classLinear->addInstrToTail("mov", "rsp", "rbp");
+
+	//TODO make space for locals
+
+	int tag = 0; //TODO get an actual tag
+
+	//get the size from the already calculated offsets
+	int max = -8; //if no variables are found, this will produce correct size
+	string varName, name = className;
+	SymTableVariable *var;
+	while (name != "Object") {
+		if ((*attributes)[name].size() != 0) {
+			for (auto attr : (*attributes)[name]) { //search through attributes for offsets
+				varName = ((Node *)attr->getChildren()[0])->value;
+				var = globalSymTable->getVariable(varName);
+				if ((int) var->offset > max) //set max to be the largest offset
+					max = var->offset;
+			}
+			break; //max is now correct
+		}
+		else { //need to check parent
+			name = globalTypeList[name];
+		}
+	}
+	int size = (max / 8) + 4; //3 for tag, size and vtable pointer 1 for offsets starting at 0
+
+	objectInit(*classLinear, className, tag, size);
+
+	//initialize variables
+	name = className;
+	Node *expr;
+	while (name != "Object") {
+		for (Node *attr : (*attributes)[name]) {
+			varName = ((Node *)attr->getChildren()[0])->value;
+			expr = (Node *)attr->getChildren()[2];
+			var = globalSymTable->getVariable(varName);
+
+			classLinear->addNewNode();
+			classLinear->addComment("Initializing variable: " + varName);
+
+			if (expr->type == AST_NULL) {
+				classLinear->addInstrToTail("mov", "0", "rax");
+			}
+			else {
+				makeExprIR_recursive(*classLinear, expr);
+				classLinear->addInstrToTail("pop", "rax");
+			}
+
+			classLinear->addInstrToTail("mov", "[rbp + 8]", "rbx"); //move self object to rbx
+			classLinear->addInstrToTail("mov", "rax", "[rbx+" + std::to_string(DEFAULT_VAR_OFFSET + var->offset) +  "]");
+		}
+		name = globalTypeList[name];
+	}
+
+	//place return value in r15
+	classLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
+
+	//function call return
+	classLinear->addInstrToTail("mov", "rbp", "rsp");
+	classLinear->addInstrToTail("pop", "rbp");
+	classLinear->addInstrToTail("ret");
+
+	return *classLinear;
+}
+
+/*
+* Author: Forest
+* Handles allocating memory for the object, setting class tag
+* and assigning the pointer to the vtable
+* size should be the number of entries NOT THE NUMBER OF BYTES
+*/
+void objectInit(InstructionList &classLinear, string name, int tag, size_t size)
+{
+	//allocate memory
+	classLinear.addNewNode();
+	classLinear.addComment("Allocate memory, and place into rbp + 8");
+	classLinear.addInstrToTail("mov", std::to_string(size), "rdi");
+	classLinear.addInstrToTail("mov", "8", "rsi");
+	classLinear.addInstrToTail("call", "calloc");
+	classLinear.addInstrToTail("mov", "rax", "[rbp + 8]");
+
+	//move pointer to our object to r12
+	classLinear.addInstrToTail("mov", "rax", "r12");
+	classLinear.addNewNode();
+	classLinear.addComment("store class tag, object size and vtable pointer");
+
+	//store tag in self[0]
+	classLinear.addInstrToTail("mov", std::to_string(tag), "rax");
+	classLinear.addInstrToTail("mov", "rax", "[r12]");
+
+	//store size in self[1]
+	classLinear.addInstrToTail("mov", std::to_string(size), "rax");
+	classLinear.addInstrToTail("mov", "rax", "[12 + 8]");
+
+	//store vtable pointer in self[2]
+	classLinear.addInstrToTail("mov", name + "..vtable", "rax");
+	classLinear.addInstrToTail("mov", "rax", "[r12 + 16]");
+
+}
+
+/*
+* Author: Forest
+*/
+InstructionList &makeIntIR() 
+{
+	InstructionList *intLinear = new InstructionList;
+
+	string className = "Int";
+	//handle return address
+	intLinear->addNewNode();
+	intLinear->addComment("Class " + className + " Initialization");
+	intLinear->addInstrToTail("push", "rbp");
+	intLinear->addInstrToTail("mov", "rsp", "rbp");
+
+
+	int tag = 0; //TODO get an actual tag
+	int size = 4; //3 object 1 data
+
+	objectInit(*intLinear, className, tag, size);
+
+	//not necassary to mov 0 into self[3] because calloc 0 initializes
+
+	//place return value in r15
+	intLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
+
+	//function call return
+	intLinear->addInstrToTail("mov", "rbp", "rsp");
+	intLinear->addInstrToTail("pop", "rbp");
+	intLinear->addInstrToTail("ret");
+
+	return *intLinear;
 }
 
 /*
@@ -307,7 +525,12 @@ void makeNew(InstructionList &methodLinear, string valType)
 	//Do object construction
 	methodLinear.addInstrToTail("push", "rbp");
 
+	//Add space at rbp+8 for self object
+	methodLinear.addInstrToTail("add", "8", "rsp");
+
 	methodLinear.addInstrToTail("call", valType + "..new"); //type constructor
+
+	methodLinear.addInstrToTail("pop", "rax");
 
 	methodLinear.addInstrToTail("pop", "rbp");
 }
