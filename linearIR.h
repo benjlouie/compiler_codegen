@@ -6,6 +6,7 @@
 #include "../src/ast.h"
 #include "../compiler_semantics/symbolTable.h"
 #include "InstructionList.h"
+#include "vTable.h"
 
 #define DEFAULT_VAR_OFFSET 24
 
@@ -16,6 +17,7 @@ extern unordered_map<string, string> globalTypeList;
 extern unordered_map<size_t, string> globalStringTable;
 extern int whileLabelCount;
 extern int ifLabelCount;
+extern vTable *globalVTable;
 
 
 unordered_map<string,InstructionList &> *makeLinear();

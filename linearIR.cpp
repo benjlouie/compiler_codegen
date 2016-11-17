@@ -64,6 +64,8 @@ InstructionList &makeMethodIR(Node *feat);
 InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *attributes);
 InstructionList &makeEntryPointIR();
 InstructionList &makeIntIR();
+InstructionList &makeVTableIR();
+InstructionList &makeStringsIR();
 
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
@@ -98,7 +100,10 @@ void objectInit(InstructionList &classLinear, string name, int tag, size_t size)
 unordered_map<string,InstructionList &> *makeLinear() 
 {
 
+
 	unordered_map<string, InstructionList &> *retMap = new unordered_map<string,InstructionList &>;
+
+	retMap->emplace("global..vtable", makeVTableIR());
 
 	//a mapping from classes to their features
 	unordered_map<string, vector<Node *>> *attributes = new unordered_map<string, vector<Node *>>;
@@ -178,12 +183,15 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("_start", makeEntryPointIR());
 
 	//Default classes
-	retMap->emplace("Int", makeIntIR());
+	retMap->emplace("Int..new", makeIntIR());
 	/*todo*/
-	//retMap->emplace("IO", makeIOIR());
-	//retMap->emplace("Object", makeObjectIR());
-	//retMap->emplace("String", makeObjectIR());
-	//retMap->emplace("Bool", makeBoolIR());
+	//retMap->emplace("IO..new", makeIOIR());
+	//retMap->emplace("Object..new", makeObjectIR());
+	//retMap->emplace("String..new", makeObjectIR());
+	//retMap->emplace("Bool..new", makeBoolIR());
+
+
+	retMap->emplace(";data section", makeStringsIR());
 
 	return retMap;
 }
@@ -222,7 +230,7 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 	//handle return address
 	classLinear->addNewNode();
 	classLinear->addComment("Class " + className + " Initialization");
-	classLinear->addInstrToTail("push", "rbp");
+	//classLinear->addInstrToTail("push", "rbp");
 	classLinear->addInstrToTail("mov", "rsp", "rbp");
 
 	//TODO make space for locals
@@ -282,7 +290,7 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 
 	//function call return
 	classLinear->addInstrToTail("mov", "rbp", "rsp");
-	classLinear->addInstrToTail("pop", "rbp");
+	//classLinear->addInstrToTail("pop", "rbp");
 	classLinear->addInstrToTail("ret");
 
 	return *classLinear;
@@ -315,7 +323,7 @@ void objectInit(InstructionList &classLinear, string name, int tag, size_t size)
 
 	//store size in self[1]
 	classLinear.addInstrToTail("mov", std::to_string(size), "rax");
-	classLinear.addInstrToTail("mov", "rax", "[12 + 8]");
+	classLinear.addInstrToTail("mov", "rax", "[r12 + 8]");
 
 	//store vtable pointer in self[2]
 	classLinear.addInstrToTail("mov", name + "..vtable", "rax");
@@ -334,7 +342,7 @@ InstructionList &makeIntIR()
 	//handle return address
 	intLinear->addNewNode();
 	intLinear->addComment("Class " + className + " Initialization");
-	intLinear->addInstrToTail("push", "rbp");
+	//intLinear->addInstrToTail("push", "rbp");
 	intLinear->addInstrToTail("mov", "rsp", "rbp");
 
 
@@ -350,10 +358,56 @@ InstructionList &makeIntIR()
 
 	//function call return
 	intLinear->addInstrToTail("mov", "rbp", "rsp");
-	intLinear->addInstrToTail("pop", "rbp");
+	//intLinear->addInstrToTail("pop", "rbp");
 	intLinear->addInstrToTail("ret");
 
 	return *intLinear;
+}
+
+/*
+* author: everyone
+*/
+InstructionList &makeVTableIR() 
+{
+	InstructionList *vtableIR = new InstructionList;
+	vtableIR->addNewNode();
+	vtableIR->addComment("Vtable");
+	string name;
+	for (auto vtable : globalVTable->vtable) {
+		vtableIR->addInstrToTail(vtable.first + "..vtable:", "", "", InstructionList::INSTR_LABEL);
+		for (string meth : vtable.second) {
+			vtableIR->addInstrToTail(".quad", meth);
+		}
+	}
+
+	return *vtableIR;
+}
+
+
+InstructionList &makeStringsIR()
+{
+	InstructionList *stringIR = new InstructionList;
+	stringIR->addNewNode();
+	stringIR->addComment("string constants");
+	stringIR->addInstrToTail(".data", "", "", InstructionList::INSTR_LABEL);
+
+	string name;
+	for (auto vtableEntry : globalVTable->vtable)
+	{
+		name = vtableEntry.second[0];
+		stringIR->addInstrToTail(name, "", "", InstructionList::INSTR_LABEL);
+		stringIR->addInstrToTail(".ascii", "\"" + vtableEntry.first + "\"");
+	}
+
+	for (int i = 0; i < globalStringTable.size(); i++)
+	{
+		name = globalStringTable[i];
+		stringIR->addInstrToTail(".string" + std::to_string(i) + ":", "", "", InstructionList::INSTR_LABEL);
+		stringIR->addInstrToTail(".ascii", "\"" + name + "\"");
+	}
+
+
+	return *stringIR;
 }
 
 /*
@@ -967,7 +1021,7 @@ void doWhile(InstructionList &methodLinear, Node *expression) {
 	methodLinear.addComment("Start of while loop" + std::to_string(countSave));
 	whileLabelCount++;
 	//add label for jump to redo loop
-	methodLinear.addInstrToTail("While_Condition" + std::to_string(countSave) + ":");
+	methodLinear.addInstrToTail("While_Condition" + std::to_string(countSave) + ":", "", "", InstructionList::INSTR_LABEL);
 	
 	//write code for condition
 	auto children = expression->getChildren();
@@ -987,7 +1041,7 @@ void doWhile(InstructionList &methodLinear, Node *expression) {
 	methodLinear.addInstrToTail("jmp", "While_Condition" + std::to_string(countSave));
 
 	//add label to jump to if condition fails and push 0 since while loops return void
-	methodLinear.addInstrToTail("While_End" + std::to_string(countSave) + ":");
+	methodLinear.addInstrToTail("While_End" + std::to_string(countSave) + ":", "", "", InstructionList::INSTR_LABEL);
 	methodLinear.addInstrToTail("push", "0");
 }
 
@@ -1015,13 +1069,13 @@ void doIf(InstructionList &methodLinear, Node *expression) {
 	methodLinear.addInstrToTail("jmp", "If_End" + std::to_string(countSave));
 
 	//write label for else
-	methodLinear.addInstrToTail("If_Else" + std::to_string(countSave) + ":");
+	methodLinear.addInstrToTail("If_Else" + std::to_string(countSave) + ":", "", "", InstructionList::INSTR_LABEL);
 
 	//write code for else
 	makeExprIR_recursive(methodLinear, (Node*)children[2]);
 
 	//write label for end
-	methodLinear.addInstrToTail("If_End" + std::to_string(countSave) + ":");
+	methodLinear.addInstrToTail("If_End" + std::to_string(countSave) + ":", "", "", InstructionList::INSTR_LABEL);
 }
 
 void doAssign(InstructionList &methodLinear, Node *expression)

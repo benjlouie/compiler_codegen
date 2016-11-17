@@ -16,7 +16,7 @@ void code()
     unordered_map<std::string, InstructionList &> *methods = makeLinear();
 
 	for (auto it = methods->begin(); it != methods->end(); it++) {
-		cout << it->first << '\n';
+		cout << it->first << ":\n";
 		it->second.printIR();
 	}
        

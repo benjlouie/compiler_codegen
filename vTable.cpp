@@ -29,7 +29,7 @@ void dfs_buildVTable(vector<string> curEntry, string clsName) {
 		return; //not in a class anymore
 	static int entry_count = 1;
 	vector<string> entry;
-	entry.push_back("string" + to_string(entry_count++));
+	entry.push_back("className" + to_string(entry_count++));
 	entry.push_back(clsName + "..new");
 	if (clsName != "Object") {
 		for (int i = 2; i < curEntry.size(); i++) {
@@ -54,6 +54,7 @@ void dfs_buildVTable(vector<string> curEntry, string clsName) {
 		dfs_buildVTable(entry, chld);
 		globalSymTable->leaveScope();
 	}
+	globalVTable->vtable[clsName] = entry;
 }
 /**
  * authors: Forest, Benji
