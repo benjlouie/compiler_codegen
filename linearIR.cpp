@@ -648,12 +648,12 @@ void doPlus(InstructionList &methodLinear, Node *expression)
 	methodLinear.addNewNode();
 	methodLinear.addComment("Add the two integers");
 
+	//make new Int for result (in r15)
+	makeNew(methodLinear, expression->valType);
+
 	//get the two values
 	methodLinear.addInstrToTail("pop", "r13");
 	methodLinear.addInstrToTail("pop", "r12");
-
-	//make new Int for result (in r15)
-	makeNew(methodLinear, expression->valType);
 
 	//temporaries for add instruction
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
@@ -681,12 +681,12 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 	methodLinear.addNewNode();
 	methodLinear.addComment("Subtract the two integers");
 
+	//make new Int for result (in rax)
+	makeNew(methodLinear, expression->valType);
+
 	//get the two values
 	methodLinear.addInstrToTail("pop", "r13");
 	methodLinear.addInstrToTail("pop", "r12");
-
-	//make new Int for result (in rax)
-	makeNew(methodLinear, expression->valType);
 
 	//temporaries for add instruction
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
@@ -714,12 +714,12 @@ void doMultiply(InstructionList &methodLinear, Node *expression)
 	methodLinear.addNewNode();
 	methodLinear.addComment("Multiply the two integers");
 
+	//make new Int for result (in rax)
+	makeNew(methodLinear, expression->valType);
+
 	//get the two values
 	methodLinear.addInstrToTail("pop", "r13");
 	methodLinear.addInstrToTail("pop", "r12");
-
-	//make new Int for result (in rax)
-	makeNew(methodLinear, expression->valType);
 
 	//temporaries for add instruction
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
@@ -748,6 +748,9 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 	methodLinear.addNewNode();
 	methodLinear.addComment("Divide the two integers");
 
+	//make new object (Int)
+	makeNew(methodLinear, expression->valType);
+
 	//get the two values
 	methodLinear.addInstrToTail("pop", "r13");
 	methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rbx");
@@ -758,9 +761,6 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 	//result in rax
 	methodLinear.addInstrToTail("idiv", "ebx");
 	methodLinear.addInstrToTail("mov","rax","r14");
-
-	//make new object (Int)
-	makeNew(methodLinear, expression->valType);
 	//put div result in Int
 	methodLinear.addInstrToTail("mov", "r14", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 
