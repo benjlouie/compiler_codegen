@@ -1428,6 +1428,9 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 
 	setupMethodCall(methodLinear, "rax", paramlist);
 
+	methodLinear.addInstrToTail("add", to_string(8*params), "rsp");
+	methodLinear.addInstrToTail("push", "r15");
+
 	methodLinear.addNewNode();
 	methodLinear.addComment("End of function call to " + method->value);
 }
