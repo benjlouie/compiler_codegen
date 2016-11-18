@@ -659,7 +659,7 @@ void doPlus(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
 	//TODO: check the 'PTR' part
-	methodLinear.addInstrToTail("add", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "DWORD r10");
+	methodLinear.addInstrToTail("add", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
 
 	//move result into new object
 	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
@@ -692,7 +692,7 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
 	//TODO: check the 'PTR' part
-	methodLinear.addInstrToTail("sub","DWORD r10", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	methodLinear.addInstrToTail("sub","DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
 
 	//move result into new object
 	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
@@ -725,7 +725,7 @@ void doMultiply(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
 	//TODO: check the 'PTR' part
-	methodLinear.addInstrToTail("imul", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "DWORD r10");
+	methodLinear.addInstrToTail("imul", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
 
 	//move result into new object
 	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
@@ -757,6 +757,9 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 	
 	methodLinear.addInstrToTail("pop", "r12");
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rax");
+
+	//clear edg
+	methodLinear.addInstrToTail("xor", "rdx", "rdx");
 
 	//result in rax
 	methodLinear.addInstrToTail("idiv", "ebx");
