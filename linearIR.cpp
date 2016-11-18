@@ -201,10 +201,10 @@ unordered_map<string,InstructionList &> *makeLinear()
 	//Default classes
 	retMap->emplace("Int..new", makeIntIR());
 	/*todo*/
-	//retMap->emplace("IO..new", makeIOIR());
-	//retMap->emplace("Object..new", makeObjectIR());
-	//retMap->emplace("String..new", makeObjectIR());
-	//retMap->emplace("Bool..new", makeBoolIR());
+	retMap->emplace("IO..new", makeIOIR());
+	retMap->emplace("Object..new", makeObjectIR());
+	retMap->emplace("String..new", makeStringIR());
+	retMap->emplace("Bool..new", makeBoolIR());
 
 	//builtins
 	retMap->emplace("Object.abort", makeAbortIR());
@@ -398,6 +398,75 @@ InstructionList &makeIntIR()
 	intLinear->addInstrToTail("ret");
 
 	return *intLinear;
+}
+
+/*
+* author: Benji
+*/
+InstructionList &makeIOIR()
+{
+	InstructionList *ioLinear = new InstructionList;
+	string className = "IO";
+	ioLinear->addNewNode();
+	//comment added
+	ioLinear->addComment("Class " + className + " Initialization");
+	ioLinear->addInstrToTail("mov", "rsp", "rbp");
+	int tag = 0;
+	int size = 3;
+	objectInit(*ioLinear, className, tag, size);
+	ioLinear->addInstrToTail("ret");
+	return *ioLinear;
+}
+
+/*
+* author: Benji
+*/
+{
+	InstructionList *objLinear = new InstructionList;
+	string className = "Object";
+	objLinear->addNewNode();
+	//comment added
+	objLinear->addComment("Class " + className + " Initialization");
+	int tag = 0;
+	int size = 3;
+	objLinear->addInstrToTail("mov", "rsp", "rbp");
+	objectInit(*objLinear, className, tag, size);
+	objLinear->addInstrToTail("ret");
+	return *objLinear;
+}
+
+/*
+* author: Benji
+*/
+InstructionList &makeStringIR()
+{
+	InstructionList *strLinear = new InstructionList;
+	string className = "String";
+	strLinear->addNewNode();
+	//comment added
+	strLinear->addComment("Class " + className + " Initialization");
+	int tag = 0;
+	int size = 4;
+	strLinear->addInstrToTail("mov", "rsp", "rbp");
+	strLinear->addInstrToTail("ret");
+	return *strLinear;
+}
+
+/*
+* author: Benji
+*/
+InstructionList &makeBoolIR()
+{
+	InstructionList *booLinear = new InstructionList;
+	string className = "Bool";
+	booLinear->addNewNode();
+	//comment added
+	booLinear->addComment("Class " + className + " Initialization");
+	int tag = 0;
+	int size = 4;
+	booLinear->addInstrToTail("mov", "rsp", "rbp");
+	booLinear->addInstrToTail("ret");
+	return *booLinear;
 }
 
 /*
