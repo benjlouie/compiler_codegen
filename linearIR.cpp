@@ -1431,7 +1431,9 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 		methodLinear.addInstrToTail("mov", "[rbx+" + to_string(vtableOffset) + "]", "rax");
 	}
 	else { //static dispatch
-		methodLinear.addInstrToTail("mov", caller->valType + "." + method->value, "rax");
+		methodLinear.addInstrToTail("lea", stattype->valType + "..vtable", "rbx");
+		vtableOffset = 8*globalVTable->getOffset(stattype->valType, method->value);
+		methodLinear.addInstrToTail("mov", "[rbx+" + to_string(vtableOffset) + "]", "rax");
 	}
 
 	setupMethodCall(methodLinear, "rax", paramlist);
