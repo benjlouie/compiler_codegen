@@ -66,6 +66,7 @@ InstructionList &makeEntryPointIR();
 InstructionList &makeIntIR();
 InstructionList &makeVTableIR();
 InstructionList &makeStringsIR();
+InstructionList &makeHeaderIR();
 
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
@@ -103,6 +104,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 
 	unordered_map<string, InstructionList &> *retMap = new unordered_map<string,InstructionList &>;
 
+    retMap->emplace("#header", makeHeaderIR());
 	retMap->emplace("global..vtable", makeVTableIR());
 
 	//a mapping from classes to their features
@@ -180,7 +182,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 		retMap->emplace(className + "..new", makeClassIR(child, attributes));
 	}
 
-	retMap->emplace("_start", makeEntryPointIR());
+	retMap->emplace("main", makeEntryPointIR());
 
 	//Default classes
 	retMap->emplace("Int..new", makeIntIR());
@@ -191,9 +193,19 @@ unordered_map<string,InstructionList &> *makeLinear()
 	//retMap->emplace("Bool..new", makeBoolIR());
 
 
-	retMap->emplace(";data section", makeStringsIR());
+	retMap->emplace("#data section", makeStringsIR());
 
 	return retMap;
+}
+
+InstructionList &makeHeaderIR() 
+{
+    InstructionList *header = new InstructionList;
+    header->addNewNode();
+    header->addComment("Required for assembly");
+    header->addInstrToTail(".globl", "main");
+    header->addInstrToTail(".intel_syntax", "noprefix");
+    return *header;
 }
 
 /*
@@ -450,9 +462,7 @@ void methodInit(InstructionList &methodLinear, Node *feature)
 	globalSymTable->enterScope(methodName);
 	int space = globalSymTable->cur->numLocals * 8;
 	globalSymTable->leaveScope();
-	methodLinear.addInstrToTail("mov", std::to_string(space), "r12");
-	methodLinear.addInstrToTail("sub", "rsp", "r12");
-	methodLinear.addInstrToTail("mov", "r12", "rsp");
+	methodLinear.addInstrToTail("sub", std::to_string(space), "rsp");
 
 	vars = new StackVariables;
 	Node * formals = (Node *)feature->getChildren()[1];
@@ -697,7 +707,7 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
 	//TODO: check the 'PTR' part
-	methodLinear.addInstrToTail("sub", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "DWORD r10");
+	methodLinear.addInstrToTail("sub","DWORD r10", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 
 	//move result into new object
 	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");

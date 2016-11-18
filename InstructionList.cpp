@@ -38,7 +38,7 @@ void InstructionList::addNewNode() {
 * Author: Matt, Robert, Ben
 */
 void InstructionList::addComment(std::string comment) {
-	tail->comment += ";" + comment + "\n";
+	tail->comment += "#" + comment + "\n";
 }
 
 void InstructionList::addPreLabel(std::string preLabel) {
@@ -89,7 +89,7 @@ void InstructionList::printIR() {
 		if (cur->postlabel != "") {
 			std::cout << cur->postlabel << '\n';
 		}
-		std::cout << ";============================================" << '\n';
+		std::cout << "#============================================" << '\n';
 
 		cur = cur->next;
 	}
