@@ -94,6 +94,7 @@ void doAssign(InstructionList &methodLinear, Node *expression);
 void doLet(InstructionList &methodLinear, Node *expression);
 
 void objectInit(InstructionList &classLinear, string name, int tag, size_t size);
+void setupMethodCall(InstructionList &methodLinear, string methodName, vector<string> formals);
 
 /*
  * Authors: Matt, Robert, and Ben
@@ -105,7 +106,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 	unordered_map<string, InstructionList &> *retMap = new unordered_map<string,InstructionList &>;
 
     retMap->emplace("#header", makeHeaderIR());
-	retMap->emplace("global..vtable", makeVTableIR());
+	retMap->emplace("#global_vtable", makeVTableIR());
 
 	//a mapping from classes to their features
 	unordered_map<string, vector<Node *>> *attributes = new unordered_map<string, vector<Node *>>;
@@ -193,7 +194,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 	//retMap->emplace("Bool..new", makeBoolIR());
 
 
-	retMap->emplace("#data section", makeStringsIR());
+	retMap->emplace(".data", makeStringsIR());
 
 	return retMap;
 }
@@ -203,8 +204,8 @@ InstructionList &makeHeaderIR()
     InstructionList *header = new InstructionList;
     header->addNewNode();
     header->addComment("Required for assembly");
-    header->addInstrToTail(".globl", "main");
-    header->addInstrToTail(".intel_syntax", "noprefix");
+    header->addInstrToTail(".globl", "main", "", InstructionList::INSTR_DIRECTIVE);
+    header->addInstrToTail(".intel_syntax", "noprefix", "", InstructionList::INSTR_DIRECTIVE);
     return *header;
 }
 
@@ -221,9 +222,7 @@ InstructionList &makeEntryPointIR()
 	makeNew(*entry, "Main");
 
 	//call Main.main()
-	entry->addInstrToTail("push", "rbp");
-	entry->addInstrToTail("push", "r15");
-	entry->addInstrToTail("call", "Main.main");
+	setupMethodCall(*entry, "Main.main", { "r15" });
 	
 	//return 0 for successful execution
 	entry->addInstrToTail("mov", "0", "rdi");
@@ -370,6 +369,7 @@ InstructionList &makeIntIR()
 
 	//function call return
 	intLinear->addInstrToTail("mov", "rbp", "rsp");
+	intLinear->addInstrToTail("sub", "8", "rbp");
 	//intLinear->addInstrToTail("pop", "rbp");
 	intLinear->addInstrToTail("ret");
 
@@ -401,13 +401,13 @@ InstructionList &makeStringsIR()
 	InstructionList *stringIR = new InstructionList;
 	stringIR->addNewNode();
 	stringIR->addComment("string constants");
-	stringIR->addInstrToTail(".data", "", "", InstructionList::INSTR_LABEL);
+	//stringIR->addInstrToTail(".data", "", "", InstructionList::INSTR_LABEL);
 
 	string name;
 	for (auto vtableEntry : globalVTable->vtable)
 	{
 		name = vtableEntry.second[0];
-		stringIR->addInstrToTail(name, "", "", InstructionList::INSTR_LABEL);
+		stringIR->addInstrToTail(name + ":", "", "", InstructionList::INSTR_LABEL);
 		stringIR->addInstrToTail(".ascii", "\"" + vtableEntry.first + "\"");
 	}
 
@@ -492,12 +492,7 @@ void methodExit(InstructionList &methodLinear, Node *feature)
 
 	//remove space for local vars
 	std::string methodName = ((Node *)feature->getChildren()[0])->value;
-	globalSymTable->enterScope(methodName);
-	int space = globalSymTable->cur->numLocals * 8;
-	globalSymTable->leaveScope();
-	methodLinear.addInstrToTail("mov", std::to_string(space), "r12");
-	methodLinear.addInstrToTail("add", "rsp", "r12");
-	methodLinear.addInstrToTail("mov", "r12", "rsp");
+	methodLinear.addInstrToTail("mov", "rbp", "rsp");
 
 	//call return
 	methodLinear.addInstrToTail("ret");
@@ -584,19 +579,9 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 }
 
 
-void makeNew(InstructionList &methodLinear, string valType)
+inline void makeNew(InstructionList &methodLinear, string valType)
 {
-	//Do object construction
-	methodLinear.addInstrToTail("push", "rbp");
-
-	//Add space at rbp+8 for self object
-	methodLinear.addInstrToTail("add", "8", "rsp");
-
-	methodLinear.addInstrToTail("call", valType + "..new"); //type constructor
-
-	methodLinear.addInstrToTail("pop", "rax");
-
-	methodLinear.addInstrToTail("pop", "rbp");
+	setupMethodCall(methodLinear, valType + "..new", { "rax" });
 }
 
 void doIdentifier(InstructionList &methodLinear, Node *expression)
@@ -643,7 +628,7 @@ void doIntLiteral(InstructionList &methodLinear, Node *expression)
 	makeNew(methodLinear, expression->valType);
 
 	//mov the correct value into rax's allocated space
-	methodLinear.addInstrToTail("mov", expression->value, "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	methodLinear.addInstrToTail("mov", expression->value, "DWORD PTR [r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 	
 	//Move the ref to the new space onto the stack
 	methodLinear.addInstrToTail("push", "r15");
@@ -820,9 +805,7 @@ void doLessThan(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r12");
 
 	//TODO: write lessthan handler
-	methodLinear.addInstrToTail("push", "rbp");
-	methodLinear.addInstrToTail("call", "LT..Handler");
-	methodLinear.addInstrToTail("pop", "rbp");
+	setupMethodCall(methodLinear, "LT..Handler", { "r13", "r12" });
 
 	methodLinear.addInstrToTail("push", "r15");
 }
@@ -846,9 +829,7 @@ void doLessThanEqual(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r12");
 
 	//TODO: write lessthanEqual handler
-	methodLinear.addInstrToTail("push", "rbp");
-	methodLinear.addInstrToTail("call", "LTE..Handler");
-	methodLinear.addInstrToTail("pop", "rbp");
+	setupMethodCall(methodLinear, "LTE..Handler", { "r13", "r12" });
 
 	methodLinear.addInstrToTail("push", "r15");
 }
@@ -871,10 +852,8 @@ void doEqual(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r13");
 	methodLinear.addInstrToTail("pop", "r12");
 
-	//TODO: write lessthan handler
-	methodLinear.addInstrToTail("push", "rbp");
-	methodLinear.addInstrToTail("call", "Equal..Handler");
-	methodLinear.addInstrToTail("pop", "rbp");
+	//TODO: write EQ handler
+	setupMethodCall(methodLinear, "EQ..Handler", { "r13", "r12" });
 
 	methodLinear.addInstrToTail("push", "r15");
 }
@@ -1169,4 +1148,19 @@ void doLet(InstructionList &methodLinear, Node *expression)
 	methodLinear.addComment("end of let expr");
 
 	vars->removeVar(varName);
+}
+
+//call with arguments rights to left ex: func(a, b, c) would be: setupMethodCall( , , <c, b, a>)
+void setupMethodCall(InstructionList &methodLinear, string methodName, vector<string> formals)
+{
+	methodLinear.addInstrToTail("push", "rbp");
+
+	for(string formal : formals)
+	{
+		methodLinear.addInstrToTail("push", formal);
+	}
+
+	methodLinear.addInstrToTail("call", methodName);
+	methodLinear.addInstrToTail("add", to_string(8 * formals.size()), "rsp");
+	methodLinear.addInstrToTail("pop", "rbp");
 }

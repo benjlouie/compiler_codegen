@@ -13,9 +13,18 @@ void code()
     //make stuff for builtins
        
     //Make the Linear IR
-    unordered_map<std::string, InstructionList &> *methods = makeLinear();
+    unordered_map<std::string, InstructionList &> *sections = makeLinear();
 
-	for (auto it = methods->begin(); it != methods->end(); it++) {
+	//header then data then .text then vtable
+	sections->at("#header").printIR();
+	cout << ".data\n";
+	sections->at(".data").printIR();
+	cout << ".text\n";
+	sections->at("#global_vtable").printIR();
+	for (auto it = sections->begin(); it != sections->end(); it++) {
+		if (it->first == ".data" || it->first[0] == '#') {
+			continue;
+		}
 		cout << it->first << ":\n";
 		it->second.printIR();
 	}

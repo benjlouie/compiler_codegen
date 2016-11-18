@@ -12,7 +12,8 @@ public:
 	enum ExtraInstrData
 	{
 		INSTR_OK,
-		INSTR_LABEL
+		INSTR_LABEL,
+		INSTR_DIRECTIVE
 	};
 
 	struct Instruction

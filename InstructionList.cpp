@@ -72,7 +72,7 @@ void InstructionList::printIR() {
 		}
 
 		for (auto instr : cur->instructions) {
-			if (instr.extraData != INSTR_LABEL)
+			if (instr.extraData == INSTR_OK)
 				std::cout << "\t";
 			std::cout << instr.instruction;
 			if (instr.dest != "") {
