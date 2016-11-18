@@ -259,7 +259,7 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 				varName = ((Node *)attr->getChildren()[0])->value;
 				var = globalSymTable->getVariable(varName);
 				if ((int) var->offset > max) //set max to be the largest offset
-					max = var->offset;
+					max = (int)var->offset;
 			}
 			break; //max is now correct
 		}
@@ -622,7 +622,7 @@ void doIdentifier(InstructionList &methodLinear, Node *expression)
 	}
 	else {
 		// in self
-		int selfMemOffset = DEFAULT_VAR_OFFSET + globalSymTable->getVariable(varName)->offset;
+		int selfMemOffset = DEFAULT_VAR_OFFSET + (int)globalSymTable->getVariable(varName)->offset;
 		int selfVarOffset = vars->getOffset("self");
 
 		//push pointer in self onto stack
@@ -1118,7 +1118,7 @@ void doAssign(InstructionList &methodLinear, Node *expression)
 	}
 	else {
 		// in self
-		int selfMemOffset = DEFAULT_VAR_OFFSET + globalSymTable->getVariable(varName)->offset;
+		int selfMemOffset = DEFAULT_VAR_OFFSET + (int)globalSymTable->getVariable(varName)->offset;
 		int selfVarOffset = vars->getOffset("self");
 
 		//get self ptr
