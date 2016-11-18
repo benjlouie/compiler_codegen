@@ -68,6 +68,18 @@ InstructionList &makeVTableIR();
 InstructionList &makeStringsIR();
 InstructionList &makeHeaderIR();
 
+/*built in functions*/
+InstructionList &makeAbortIR();
+InstructionList &makeTypeNameIR();
+InstructionList &makeCopyIR();
+InstructionList &makeOutStringIR();
+InstructionList &makeInStringIR();
+InstructionList &makeOutIntIR();
+InstructionList &makeInIntIR();
+InstructionList &makeLengthIR();
+InstructionList &makeConcatIR();
+InstructionList &makeSubstrIR();
+
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
 void methodInit(InstructionList &methodLinear, Node *feature);
@@ -92,6 +104,7 @@ void doWhile(InstructionList &methodLinear, Node *expression);
 void doIf(InstructionList &methodLinear, Node *expression);
 void doAssign(InstructionList &methodLinear, Node *expression);
 void doLet(InstructionList &methodLinear, Node *expression);
+void doDispatch(InstructionList &methodLinear, Node *expression);
 
 void objectInit(InstructionList &classLinear, string name, int tag, size_t size);
 void setupMethodCall(InstructionList &methodLinear, string methodName, vector<string> formals);
@@ -193,6 +206,17 @@ unordered_map<string,InstructionList &> *makeLinear()
 	//retMap->emplace("String..new", makeObjectIR());
 	//retMap->emplace("Bool..new", makeBoolIR());
 
+	//builtins
+	retMap->emplace("Object.abort", makeAbortIR());
+	retMap->emplace("Object.type_name", makeTypeNameIR());
+	retMap->emplace("Object.copy", makeCopyIR());
+	retMap->emplace("IO.out_string", makeOutStringIR());
+	retMap->emplace("IO.in_string", makeInStringIR());
+	retMap->emplace("IO.out_int", makeOutIntIR());
+	retMap->emplace("IO.in_int", makeInIntIR());
+	retMap->emplace("String.length", makeLengthIR());
+	retMap->emplace("String.concat", makeConcatIR());
+	retMap->emplace("String.substr", makeSubstrIR());
 
 	retMap->emplace(".data", makeStringsIR());
 
@@ -422,6 +446,118 @@ InstructionList &makeStringsIR()
 	return *stringIR;
 }
 
+/*Built in function definitions start*/
+InstructionList &makeAbortIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+InstructionList &makeTypeNameIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+InstructionList &makeCopyIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+InstructionList &makeOutStringIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+InstructionList &makeInStringIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+InstructionList &makeOutIntIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+InstructionList &makeInIntIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+InstructionList &makeLengthIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+InstructionList &makeConcatIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+InstructionList &makeSubstrIR()
+{
+	InstructionList *methodLinear = new InstructionList;
+
+	methodLinear->addNewNode();
+	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("ret");
+
+	return *methodLinear;
+}
+
+/*Built in function definitions end*/
 /*
 * Author: Matt, Robert, Ben
 */
@@ -572,6 +708,9 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 	case AST_CASESTATEMENT:
 		break;
 	case AST_CASE:
+		break;
+	case AST_DISPATCH:
+		doDispatch(methodLinear, expression);
 		break;
 	default:
 		break;
@@ -1151,6 +1290,72 @@ void doLet(InstructionList &methodLinear, Node *expression)
 	methodLinear.addComment("end of let expr");
 
 	vars->removeVar(varName);
+}
+
+//author: Forest
+void doDispatch(InstructionList &methodLinear, Node *expression)
+{
+	auto children = expression->getChildren();
+	Node *caller = (Node *)children[0];
+	Node *stattype = (Node *)children[1];
+	Node *method = (Node *)children[2];
+	Node *exprs = (Node *)children[3];
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("Start of call to method " + method->value);
+
+	//evaluate parameters left to right (cool manual p27)
+	//TODO: optimize for low number of inputs
+	children = exprs->getChildren();
+	int params = children.size();
+	Node *chld;
+	vector<string> paramlist;
+	for (auto tchild : children) {
+		chld = (Node *)tchild;
+		makeExprIR_recursive(methodLinear, chld);
+	}
+	
+	//save current stack offset, and give parameters as locations relative to that
+	methodLinear.addInstrToTail("mov", "rsp", "rcx"); //rcx must be preserved until call to setupMethodCall()
+	for (int i = params-1; i >= 0; i--) {
+		paramlist.push_back("[rcx+" + to_string(i*8) + "]");
+	}
+
+
+
+
+	int vtableOffset;
+	string type;
+	//Caller will be evaluated AFTER parameters (cool manual p27)
+	//put caller into r12
+	if (caller->type != AST_NULL) { //must evaluate caller
+		makeExprIR_recursive(methodLinear, caller);
+		methodLinear.addInstrToTail("pop", "r12");
+	}
+	else { //caller is self
+		methodLinear.addInstrToTail("mov", "[rbp+8]", "r12");
+	}
+	paramlist.push_back("r12");
+
+	//mov function location into rax
+	if (stattype->type == AST_NULL) { //dynamic dispatch
+		if (caller->type == AST_NULL || caller->valType == "SELF_TYPE") { //get offset from current class
+			vtableOffset = 8*globalVTable->getOffset(globalSymTable->cur->name, method->value);
+		}
+		else {//get offset from static type
+			vtableOffset = 8*globalVTable->getOffset(caller->valType, method->value);
+		}
+		methodLinear.addInstrToTail("mov", "[r12+16]", "rbx");//16 holds vtable pointer
+		methodLinear.addInstrToTail("mov", "[rbx+" + to_string(vtableOffset) + "]", "rax");
+	}
+	else { //static dispatch
+		methodLinear.addInstrToTail("mov", caller->valType + "." + method->value, "rax");
+	}
+
+	setupMethodCall(methodLinear, "rax", paramlist);
+
+	methodLinear.addNewNode();
+	methodLinear.addComment("End of function call to " + method->value);
 }
 
 //call with arguments rights to left ex: func(a, b, c) would be: setupMethodCall( , , <c, b, a>)

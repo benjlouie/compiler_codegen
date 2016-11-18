@@ -19,7 +19,8 @@ class vTable {
 public:
 	unordered_map<string, vector<string>> vtable;
 
-	vTable();	
+	vTable();
+	int getOffset(string cls, string method_name);
 };
 
 extern vTable *globalVTable;
