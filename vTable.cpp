@@ -67,3 +67,18 @@ void buildVTable() {
 	dfs_buildVTable(entry, "Object");
 
 }
+
+//Author: Forest
+//Gives the offset, in number of entries, a method is from the base of the classes vtable entry
+int vTable::getOffset(string cls, string method_name)
+{
+	vector<string> methods = vtable[cls];
+	string method;
+	for (unsigned int i = 2; i < methods.size(); i++) {//start at 2 to ignore name and ..new
+		method = methods[i].substr(methods[i].find(".") + 1);
+		if (method_name == method) //from .onwards
+			return i;
+	}
+	cerr << "Unable to find method in vtable!!" << endl;
+	exit(1);
+}
