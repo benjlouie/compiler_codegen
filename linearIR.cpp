@@ -64,6 +64,10 @@ InstructionList &makeMethodIR(Node *feat);
 InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *attributes);
 InstructionList &makeEntryPointIR();
 InstructionList &makeIntIR();
+InstructionList &makeIOIR();
+InstructionList &makeBoolIR();
+InstructionList &makeStringIR();
+InstructionList &makeObjectIR();
 InstructionList &makeVTableIR();
 InstructionList &makeStringsIR();
 InstructionList &makeHeaderIR();
@@ -361,7 +365,7 @@ void objectInit(InstructionList &classLinear, string name, int tag, size_t size)
 	classLinear.addInstrToTail("mov", "rax", "[r12 + 8]");
 
 	//store vtable pointer in self[2]
-	classLinear.addInstrToTail("mov", name + "..vtable", "rax");
+	classLinear.addInstrToTail("lea", name + "..vtable", "rax"); //want pointer, not value at the pointer
 	classLinear.addInstrToTail("mov", "rax", "[r12 + 16]");
 
 }
@@ -421,6 +425,7 @@ InstructionList &makeIOIR()
 /*
 * author: Benji
 */
+InstructionList &makeObjectIR()
 {
 	InstructionList *objLinear = new InstructionList;
 	string className = "Object";
@@ -501,14 +506,14 @@ InstructionList &makeStringsIR()
 	{
 		name = vtableEntry.second[0];
 		stringIR->addInstrToTail(name + ":", "", "", InstructionList::INSTR_LABEL);
-		stringIR->addInstrToTail(".ascii", "\"" + vtableEntry.first + "\"");
+		stringIR->addInstrToTail(".string", "\"" + vtableEntry.first + "\"");
 	}
 
 	for (size_t i = 0; i < globalStringTable.size(); i++)
 	{
 		name = globalStringTable[i];
 		stringIR->addInstrToTail(".string" + std::to_string(i) + ":", "", "", InstructionList::INSTR_LABEL);
-		stringIR->addInstrToTail(".ascii", "\"" + name + "\"");
+		stringIR->addInstrToTail(".string", "\"" + name + "\"");
 	}
 
 
