@@ -554,12 +554,18 @@ InstructionList &makeCopyIR()
 	return *methodLinear;
 }
 
+//author: Forest
 InstructionList &makeOutStringIR()
 {
 	InstructionList *methodLinear = new InstructionList;
 
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");
+	methodLinear->addComment("it's basically puts");//TODO make it not puts (remove newline)
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");
+	methodLinear->addInstrToTail("mov", "[rax+24]", "rdi");
+	methodLinear->addInstrToTail("call", "puts");
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");
 	methodLinear->addInstrToTail("ret");
 
 	return *methodLinear;
@@ -1092,7 +1098,9 @@ void doString(InstructionList &methodLinear, Node *expression)
 	string stringName = ".string" + std::to_string(stringNum);
 
 	//mov the string ptr into new object
-	methodLinear.addInstrToTail("mov", stringName, "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	//methodLinear.addInstrToTail("mov", stringName, "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	methodLinear.addInstrToTail("lea", stringName, "rax");
+	methodLinear.addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 
 	//Move the ref to the new obj onto the stack
 	methodLinear.addInstrToTail("push", "r15");
