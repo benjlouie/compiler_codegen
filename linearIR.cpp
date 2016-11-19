@@ -450,9 +450,10 @@ InstructionList &makeStringIR()
 	strLinear->addNewNode();
 	//comment added
 	strLinear->addComment("Class " + className + " Initialization");
+	strLinear->addInstrToTail("mov", "rsp", "rbp");
 	int tag = 0;
 	int size = 4;
-	strLinear->addInstrToTail("mov", "rsp", "rbp");
+	strLinear->addInstrToTail("mov", "rbp", "rsp");
 	strLinear->addInstrToTail("ret");
 	return *strLinear;
 }
@@ -1329,6 +1330,7 @@ void doAssign(InstructionList &methodLinear, Node *expression)
 		//move result into self at var offset
 		methodLinear.addInstrToTail("mov", "rax", "[r12+" + std::to_string(selfMemOffset) + "]");
 	}
+	methodLinear.addInstrToTail("push", "rax");
 }
 
 void doLet(InstructionList &methodLinear, Node *expression)
@@ -1398,12 +1400,9 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 	}
 	
 	//save current stack offset, and give parameters as locations relative to that
-	methodLinear.addInstrToTail("mov", "rsp", "rcx"); //rcx must be preserved until call to setupMethodCall()
 	for (int i = params-1; i >= 0; i--) {
 		paramlist.push_back("[rcx+" + to_string(i*8) + "]");
 	}
-
-
 
 
 	int vtableOffset;
@@ -1436,6 +1435,7 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 		methodLinear.addInstrToTail("mov", "[rbx+" + to_string(vtableOffset) + "]", "rax");
 	}
 
+	methodLinear.addInstrToTail("mov", "rsp", "rcx"); //need to store this
 	setupMethodCall(methodLinear, "rax", paramlist);
 
 	methodLinear.addInstrToTail("add", to_string(8*params), "rsp");
