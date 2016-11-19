@@ -1,4 +1,4 @@
-#include "linearIR.h"
+#include "../compiler_codegen/linearIR.h"
 
 // IMPORTANT REGISTER INFO
 // volatile registers: (destroyed on function call)
@@ -83,6 +83,12 @@ InstructionList &makeInIntIR();
 InstructionList &makeLengthIR();
 InstructionList &makeConcatIR();
 InstructionList &makeSubstrIR();
+
+/*Some helper functions*/
+void atCalleeExit(InstructionList &methodLinear);
+void atCalleeEntry(InstructionList &methodLinear);
+void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut);
+void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement);
 
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
@@ -633,25 +639,125 @@ InstructionList &makeInIntIR()
 	return *methodLinear;
 }
 
+/*
+ * @author: Matt
+ */ 
 InstructionList &makeLengthIR()
 {
+	/*Idea gotten from http://www.int80h.org/strlen/ */
 	InstructionList *methodLinear = new InstructionList;
 
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("ret");
+	methodLinear->addComment("Get length of string");
+	atCalleeEntry(*methodLinear);
+	
+	//Make ECX == max unsigned int == -1
+	methodLinear->addInstrToTail("xor","rcx", "rcx");
+	methodLinear->addInstrToTail("not","rcx");
+
+	//make AL == 0
+	methodLinear->addInstrToTail("xor","al","al");
+
+	//put string pointer into rdi
+	getMethodParamIntoRegister(*methodLinear, 0, "r10");
+	/*CHECK ME TO MAKE SURE I'M GETTING STRING RIGHT.*/
+	methodLinear->addInstrToTail("mov", "r10+24", "rdi");
+
+	//clear flag
+	methodLinear->addInstrToTail("cld");
+	
+	//Search for the first occurence of a byte == al, which is 0
+	//Decreases ECX every time it scans a byte
+	//Goes until it finds == al OR ECX == 0
+	methodLinear->addInstrToTail("repne", "scasb");
+
+	//String length is now in ecx - kinda. ecx == -strlen - 2
+	//SO not ecx and sub 1.
+	methodLinear->addInstrToTail("not","ecx");
+	methodLinear->addInstrToTail("dec", "ecx");
+
+	//Put value into int object to return
+	//Store value on stack
+	methodLinear->addInstrToTail("push", "rcx");
+
+	//Make new integer
+	setupMethodCall(*methodLinear, "Int..new", { "rax" });
+
+	//Pop value into register
+	methodLinear->addInstrToTail("pop", "r14");
+
+	//Put into place in new Int object, and leave the object in r15 to return.
+	methodLinear->addInstrToTail("mov", "r14", "[r15+24]");
+
+	atCalleeExit(*methodLinear);
 
 	return *methodLinear;
 }
 
+/*
+ * @author: Matt 
+ */
 InstructionList &makeConcatIR()
 {
 	InstructionList *methodLinear = new InstructionList;
 
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("ret");
+	methodLinear->addComment("Concatenate two strings into 1");
+	atCalleeEntry(*methodLinear);
 
+	//c calling conventions
+	//RDI RSI RDX RCX
+	//RETURN IN RAX
+
+	/*get length of final string*/
+	//Get self
+	getMethodParamIntoRegister(*methodLinear, 0, "r10");
+	//Call strlen on it
+	setupMethodCall(*methodLinear, "String.length", { "r10" });
+	//get the length of the string onto the stack
+	methodLinear->addInstrToTail("mov", "[r15+24]", "r14");
+	methodLinear->addInstrToTail("push", "r14");
+
+	//Same as above for self, except now it's the first formal param
+	getMethodParamIntoRegister(*methodLinear, 1, "r11");
+	setupMethodCall(*methodLinear, "String.length", { "r11" });
+	methodLinear->addInstrToTail("mov", "[r15+24]", "r14");
+
+	methodLinear->addInstrToTail("pop", "r10");
+	methodLinear->addInstrToTail("add", "r14", "r10");
+
+
+	/*make space for final string*/
+	callCalloc(*methodLinear, "r10", "1");
+
+	/*copy in self*/
+	methodLinear->addInstrToTail("push", "rax");
+	methodLinear->addInstrToTail("mov", "rax", "rdi");
+	getMethodParamIntoRegister(*methodLinear, 0, "r10");
+	methodLinear->addInstrToTail("mov", "r10+24", "rsi");
+
+	methodLinear->addInstrToTail("call", "strcpy");
+
+	/*concatenate the second one*/
+	//Pop the created mem, and then push to save it again.
+	methodLinear->addInstrToTail("pop", "rdi #I swear we want these two functions. Trust me.");
+	methodLinear->addInstrToTail("push", "rdi");
+	getMethodParamIntoRegister(*methodLinear, 1, "r11");
+	methodLinear->addInstrToTail("mov", "r11 + 24", "rsi");
+
+	methodLinear->addInstrToTail("call", "strcat");
+
+	/*put the new string into a string object to return*/
+	//Make a new string to put this into.
+	setupMethodCall(*methodLinear, "String..new", { "rax" });
+
+	//put new string into return object
+	methodLinear->addInstrToTail("pop", "r10");
+	methodLinear->addInstrToTail("mov", "r10", "[r15 + 24]");	
+
+	//return that new object
+	atCalleeExit(*methodLinear);
+	
 	return *methodLinear;
 }
 
@@ -667,6 +773,46 @@ InstructionList &makeSubstrIR()
 }
 
 /*Built in function definitions end*/
+
+/*Helper functions */
+
+/*
+ * @author: Matt 
+ */
+void atCalleeEntry(InstructionList &methodLinear)
+{
+	methodLinear.addInstrToTail("mov", "rsp", "rbp");
+}
+
+/*
+ * @author: Matt 
+ */
+void atCalleeExit(InstructionList &methodLinear)
+{
+	methodLinear.addInstrToTail("mov", "rbp", "rsp");
+	methodLinear.addInstrToTail("ret");
+}
+
+/*
+ * @author: Matt 
+ */
+void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut)
+{
+	int numOffRBP = 8 + 8*numParam;
+	methodLinear.addInstrToTail("mov", "[rbp + " + to_string(numOffRBP) + "]", placeToPut);
+}
+
+/*
+ * @author: Matt 
+ */
+void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement)
+{
+	methodLinear.addInstrToTail("mov", paramHoldNumElements, "rdi");
+	methodLinear.addInstrToTail("mov", paramHoldSizeOfEachElement, "rsi");
+
+	methodLinear.addInstrToTail("call", "calloc");
+}
+
 /*
 * Author: Matt, Robert, Ben
 */
