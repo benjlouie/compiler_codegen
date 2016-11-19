@@ -3,6 +3,7 @@
 #include<vector>
 #include<string>
 #include <stack>
+#include <algorithm>
 #include "../src/ast.h"
 #include "../compiler_semantics/symbolTable.h"
 #include "InstructionList.h"

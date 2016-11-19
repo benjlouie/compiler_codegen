@@ -227,6 +227,11 @@ unordered_map<string,InstructionList &> *makeLinear()
 	return retMap;
 }
 
+/*
+* Keyboard: Forest
+* Others:
+* 
+*/
 InstructionList &makeHeaderIR() 
 {
     InstructionList *header = new InstructionList;
@@ -397,7 +402,6 @@ InstructionList &makeIntIR()
 
 	//function call return
 	intLinear->addInstrToTail("mov", "rbp", "rsp");
-	intLinear->addInstrToTail("sub", "8", "rbp");
 	//intLinear->addInstrToTail("pop", "rbp");
 	intLinear->addInstrToTail("ret");
 
@@ -442,6 +446,7 @@ InstructionList &makeObjectIR()
 
 /*
 * author: Benji
+* others: everyone
 */
 InstructionList &makeStringIR()
 {
@@ -453,6 +458,16 @@ InstructionList &makeStringIR()
 	strLinear->addInstrToTail("mov", "rsp", "rbp");
 	int tag = 0;
 	int size = 4;
+
+	objectInit(*strLinear, className, tag, size);
+	//make empty string (this method should only be called once
+	size_t stringNum = globalStringTable.size();
+	globalStringTable[stringNum] = "";
+	//load effective address of string into self[3]
+	strLinear->addInstrToTail("lea", ".string" + to_string(stringNum), "rax");
+	strLinear->addInstrToTail("mov", "rax", "[r12+" + to_string(DEFAULT_VAR_OFFSET) + "]");
+	strLinear->addInstrToTail("mov", "r12", "r15");
+
 	strLinear->addInstrToTail("mov", "rbp", "rsp");
 	strLinear->addInstrToTail("ret");
 	return *strLinear;
@@ -475,8 +490,11 @@ InstructionList &makeBoolIR()
 	return *booLinear;
 }
 
+
 /*
-* author: everyone
+* Keyboard: Forest
+* Others: everyone
+* 
 */
 InstructionList &makeVTableIR() 
 {
@@ -495,6 +513,11 @@ InstructionList &makeVTableIR()
 }
 
 
+/*
+* Keyboard: Forest
+* Others:
+* 
+*/
 InstructionList &makeStringsIR()
 {
 	InstructionList *stringIR = new InstructionList;
@@ -555,7 +578,12 @@ InstructionList &makeCopyIR()
 	return *methodLinear;
 }
 
-//author: Forest
+
+/*
+* Keyboard: Forest
+* Others:
+* 
+*/
 InstructionList &makeOutStringIR()
 {
 	InstructionList *methodLinear = new InstructionList;
@@ -799,11 +827,21 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 }
 
 
+/*
+* Keyboard: Ben
+* Others: everyone
+* Was changed significantly (aka obsolete now)
+*/
 inline void makeNew(InstructionList &methodLinear, string valType)
 {
 	setupMethodCall(methodLinear, valType + "..new", { "rax" });
 }
 
+/*
+* Keyboard: Ben
+* Others: Everyone
+* 
+*/
 void doIdentifier(InstructionList &methodLinear, Node *expression)
 {
 	std::string varName = expression->value;
@@ -1091,7 +1129,7 @@ void doString(InstructionList &methodLinear, Node *expression)
 
 
 	//Do String construction
-	makeNew(methodLinear, expression->valType);
+	makeNew(methodLinear, "String");
 
 	//add string to data table
 	size_t stringNum = globalStringTable.size();
@@ -1099,7 +1137,6 @@ void doString(InstructionList &methodLinear, Node *expression)
 	string stringName = ".string" + std::to_string(stringNum);
 
 	//mov the string ptr into new object
-	//methodLinear.addInstrToTail("mov", stringName, "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 	methodLinear.addInstrToTail("lea", stringName, "rax");
 	methodLinear.addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 
@@ -1259,6 +1296,11 @@ void doWhile(InstructionList &methodLinear, Node *expression) {
 	methodLinear.addInstrToTail("push", "0");
 }
 
+/*
+* Keyboard: Robert
+* Others: everyone
+* 
+*/
 void doIf(InstructionList &methodLinear, Node *expression) {
 	int countSave = ifLabelCount;
 
@@ -1292,6 +1334,11 @@ void doIf(InstructionList &methodLinear, Node *expression) {
 	methodLinear.addInstrToTail("If_End" + std::to_string(countSave) + ":", "", "", InstructionList::INSTR_LABEL);
 }
 
+/*
+* Keyboard: Matt
+* Others: everyone
+* 
+*/
 void doAssign(InstructionList &methodLinear, Node *expression)
 {
 	auto children = expression->getChildren();
@@ -1333,6 +1380,11 @@ void doAssign(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("push", "rax");
 }
 
+/*
+* Keyboard: Ben
+* Others: everyone
+* 
+*/
 void doLet(InstructionList &methodLinear, Node *expression)
 {
 	auto children = expression->getChildren();
@@ -1376,7 +1428,11 @@ void doLet(InstructionList &methodLinear, Node *expression)
 	vars->removeVar(varName);
 }
 
-//author: Forest
+/*
+* Keyboard: Forest
+* Others:
+* 
+*/
 void doDispatch(InstructionList &methodLinear, Node *expression)
 {
 	auto children = expression->getChildren();
@@ -1403,6 +1459,7 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 	for (int i = params-1; i >= 0; i--) {
 		paramlist.push_back("[rcx+" + to_string(i*8) + "]");
 	}
+	std::reverse(paramlist.begin(), paramlist.end());
 
 
 	int vtableOffset;
@@ -1445,6 +1502,11 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 	methodLinear.addComment("End of function call to " + method->value);
 }
 
+/*
+* Keyboard: Ben
+* Others: Matt, Robert, Forest
+* 
+*/
 //call with arguments rights to left ex: func(a, b, c) would be: setupMethodCall( , , <c, b, a>)
 void setupMethodCall(InstructionList &methodLinear, string methodName, vector<string> formals)
 {
