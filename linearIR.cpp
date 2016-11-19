@@ -109,6 +109,7 @@ void doIf(InstructionList &methodLinear, Node *expression);
 void doAssign(InstructionList &methodLinear, Node *expression);
 void doLet(InstructionList &methodLinear, Node *expression);
 void doDispatch(InstructionList &methodLinear, Node *expression);
+void doCaseStatement(InstructionList &methodLinear, Node *expression);
 
 void objectInit(InstructionList &classLinear, string name, int tag, size_t size);
 void setupMethodCall(InstructionList &methodLinear, string methodName, vector<string> formals);
@@ -279,7 +280,7 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 
 	//TODO make space for locals
 
-	int tag = 0; //TODO get an actual tag
+	int tag = globalSymTable->getClassTag(className);
 
 	//get the size from the already calculated offsets
 	int max = -8; //if no variables are found, this will produce correct size
@@ -390,7 +391,7 @@ InstructionList &makeIntIR()
 	intLinear->addInstrToTail("mov", "rsp", "rbp");
 
 
-	int tag = 0; //TODO get an actual tag
+	int tag = globalSymTable->getClassTag(className);
 	int size = 4; //3 object 1 data
 
 	objectInit(*intLinear, className, tag, size);
@@ -419,7 +420,7 @@ InstructionList &makeIOIR()
 	//comment added
 	ioLinear->addComment("Class " + className + " Initialization");
 	ioLinear->addInstrToTail("mov", "rsp", "rbp");
-	int tag = 0;
+	int tag = globalSymTable->getClassTag(className);
 	int size = 3;
 	objectInit(*ioLinear, className, tag, size);
 	ioLinear->addInstrToTail("ret");
@@ -436,7 +437,7 @@ InstructionList &makeObjectIR()
 	objLinear->addNewNode();
 	//comment added
 	objLinear->addComment("Class " + className + " Initialization");
-	int tag = 0;
+	int tag = globalSymTable->getClassTag(className);
 	int size = 3;
 	objLinear->addInstrToTail("mov", "rsp", "rbp");
 	objectInit(*objLinear, className, tag, size);
@@ -456,7 +457,7 @@ InstructionList &makeStringIR()
 	//comment added
 	strLinear->addComment("Class " + className + " Initialization");
 	strLinear->addInstrToTail("mov", "rsp", "rbp");
-	int tag = 0;
+	int tag = globalSymTable->getClassTag(className);
 	int size = 4;
 
 	objectInit(*strLinear, className, tag, size);
@@ -483,7 +484,7 @@ InstructionList &makeBoolIR()
 	booLinear->addNewNode();
 	//comment added
 	booLinear->addComment("Class " + className + " Initialization");
-	int tag = 0;
+	int tag = globalSymTable->getClassTag(className);
 	int size = 4;
 	booLinear->addInstrToTail("mov", "rsp", "rbp");
 	booLinear->addInstrToTail("ret");
@@ -815,6 +816,7 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 		doLet(methodLinear, expression);
 		break;
 	case AST_CASESTATEMENT:
+		doCaseStatement(methodLinear, expression);
 		break;
 	case AST_CASE:
 		break;
@@ -1500,6 +1502,84 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 
 	methodLinear.addNewNode();
 	methodLinear.addComment("End of function call to " + method->value);
+}
+
+
+void doCaseStatement(InstructionList &methodLinear, Node *expression)
+{
+	caseLabelCount++;
+	methodLinear.addNewNode();
+	methodLinear.addComment("start case" + to_string(caseLabelCount));
+
+	auto children = expression->getChildren();
+	Node *caseExpr = (Node *)children[0];
+	Node *caseList = (Node *)children[1];
+	makeExprIR_recursive(methodLinear, caseExpr);
+	methodLinear.addInstrToTail("pop", "rax");
+	methodLinear.addInstrToTail("mov", "[rax]", "rbx");
+	methodLinear.addInstrToTail("lea", "case" + to_string(caseLabelCount) + "_table", "r12");
+	methodLinear.addInstrToTail("jmp", "[r12+rbx*8+0]");
+
+	//sort cases
+	vector<Node *> cases;
+	for (auto tchld : caseList->getChildren()) {
+		cases.push_back((Node *)tchld);
+	}
+	auto  cmpr = [](Node *a, Node *b) -> bool {
+		Node *atype = (Node *)a->getChildren()[1];
+		int atag = globalSymTable->getClassTag(atype->value);
+		Node *btype = (Node *)b->getChildren()[1];
+		int btag = globalSymTable->getClassTag(btype->value);
+		return btag < atag;
+	};
+	std::sort(cases.begin(), cases.end(), cmpr);
+
+	auto caseType = [](Node *n) -> string {
+		Node *ntype = (Node *)n->getChildren()[1];
+		return ntype->value;
+	};
+
+	//setup jump table
+	vector<string> jmpTable;
+	for (auto type : globalTypeList) {
+		string tag = "";
+		for (Node *cs : cases) {
+			string cType = caseType(cs);
+			if (globalSymTable->isSubClass(type.first, cType)) {
+				tag = "case" + to_string(caseLabelCount) + "_" + cType;
+				break;
+			}
+		}
+		if (tag == "") {
+			tag = "case_error";
+		}
+
+		jmpTable.push_back(tag);
+	}
+
+	//put table directly into assembly
+	//case#_table (for jmp table)
+	methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_table", "", "", InstructionList::INSTR_LABEL);
+	for (string tag : jmpTable) {
+		methodLinear.addInstrToTail(".quad", tag);
+	}
+
+	//each expression (with label)
+	for (Node *cs : cases) {
+		auto tExpr = cs->getChildren()[2];
+		Node *expr = (Node *)tExpr;
+		methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_" + caseType(cs), "", "", InstructionList::INSTR_LABEL);
+		//put rax into case variable name offset on stack
+
+
+		makeExprIR_recursive(methodLinear, expr);
+		methodLinear.addInstrToTail("jmp", "case" + to_string(caseLabelCount) + "_end");
+	}
+
+	//case#_end
+	methodLinear.addNewNode();
+	methodLinear.addComment("case" + to_string(caseLabelCount) + " END");
+	methodLinear.addPreLabel("case" + to_string(caseLabelCount) + "_end");
 }
 
 /*
