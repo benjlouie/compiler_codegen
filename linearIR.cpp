@@ -51,7 +51,20 @@ public:
 	int getOffset(std::string name) {
 		return vars[name].top();
 	}
-
+	void addCaseVars(vector<string> ids) {
+		for (string id : ids) {
+			vars[id].push(varOffset);
+		}
+		varOffset -= 8;
+	}
+	void removeCaseVars(vector<string> ids) {
+		for (string id : ids) {
+			vars[id].pop();
+			if (vars[id].size() == 0)
+				vars.erase(id);
+		}
+		varOffset += 8;
+	}
 private:
 	std::unordered_map<std::string, std::stack<int>> vars;
 	int formalOffset;
@@ -1504,7 +1517,9 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 	methodLinear.addComment("End of function call to " + method->value);
 }
 
-
+/*
+* Authors: Forest, Ben
+*/
 void doCaseStatement(InstructionList &methodLinear, Node *expression)
 {
 	caseLabelCount++;
@@ -1517,14 +1532,22 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 	makeExprIR_recursive(methodLinear, caseExpr);
 	methodLinear.addInstrToTail("pop", "rax");
 	methodLinear.addInstrToTail("mov", "[rax]", "rbx");
+
+	//sort cases and grab ids
+	vector<string> varNames;
+	vector<Node *> cases;
+	for (auto tchld : caseList->getChildren()) {
+		Node *chld = (Node *)tchld;
+		cases.push_back(chld);
+		varNames.push_back(((Node *)chld->getChildren()[0])->value);
+	}
+	
+	//add offset info
+	vars->addCaseVars(varNames);
+	methodLinear.addInstrToTail("mov", "rax", "[rbp-" + to_string(-vars->getOffset(varNames[0])) + "]");
 	methodLinear.addInstrToTail("lea", "case" + to_string(caseLabelCount) + "_table", "r12");
 	methodLinear.addInstrToTail("jmp", "[r12+rbx*8+0]");
 
-	//sort cases
-	vector<Node *> cases;
-	for (auto tchld : caseList->getChildren()) {
-		cases.push_back((Node *)tchld);
-	}
 	auto  cmpr = [](Node *a, Node *b) -> bool {
 		Node *atype = (Node *)a->getChildren()[1];
 		int atag = globalSymTable->getClassTag(atype->value);
@@ -1559,7 +1582,7 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 
 	//put table directly into assembly
 	//case#_table (for jmp table)
-	methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_table", "", "", InstructionList::INSTR_LABEL);
+	methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_table:", "", "", InstructionList::INSTR_LABEL);
 	for (string tag : jmpTable) {
 		methodLinear.addInstrToTail(".quad", tag);
 	}
@@ -1568,7 +1591,7 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 	for (Node *cs : cases) {
 		auto tExpr = cs->getChildren()[2];
 		Node *expr = (Node *)tExpr;
-		methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_" + caseType(cs), "", "", InstructionList::INSTR_LABEL);
+		methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_" + caseType(cs) + ":", "", "", InstructionList::INSTR_LABEL);
 		//put rax into case variable name offset on stack
 
 
@@ -1579,7 +1602,10 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 	//case#_end
 	methodLinear.addNewNode();
 	methodLinear.addComment("case" + to_string(caseLabelCount) + " END");
-	methodLinear.addPreLabel("case" + to_string(caseLabelCount) + "_end");
+	methodLinear.addPreLabel("case" + to_string(caseLabelCount) + "_end:");
+
+	//cleanup scoping
+	vars->removeCaseVars(varNames);
 }
 
 /*
