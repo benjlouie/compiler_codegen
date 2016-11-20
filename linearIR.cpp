@@ -635,7 +635,7 @@ InstructionList &makeLThandler() {
 	methodLinear->addInstrToTail("jge", "LT.HANDLER.FALSE");											//		if false jump to LT.HANDLER.FALSE		*
 																										//												*
 	//if true move 1 into bool																			//												*
-	methodLinear->addInstrToTail("mov", "1", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					*
+	methodLinear->addInstrToTail("mov", "1", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					*
 	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");												//		jump to LT.HANDLER.END					*
 	//if false move 0 into bool																			//												*
 	methodLinear->addInstrToTail("LT.HANDLER.FALSE:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								*
@@ -674,14 +674,14 @@ InstructionList &makeLTEhandler() {
 	methodLinear->addInstrToTail("jg", "LT.HANDLER.FALSE");												//		if false jump to LT.HANDLER.FALSE		 *
 																										//												 *
 	//if true move 1 into bool																			//												 *
-	methodLinear->addInstrToTail("mov", "1", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					 *
+	methodLinear->addInstrToTail("mov", "1", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					 *
 	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");												//		jump to LT.HANDLER.END					 *
 	//if false move 0 into bool																			//												 *
-	methodLinear->addInstrToTail("LT.HANDLER.FALSE", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								 *
+	methodLinear->addInstrToTail("LT.HANDLER.FALSE:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								 *
 	methodLinear->addInstrToTail("mov", "0", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					 *
 																										//												 *
 	//return the bool and return from function															//												 *
-	methodLinear->addInstrToTail("LT.HANDLER.END", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.END								 *
+	methodLinear->addInstrToTail("LT.HANDLER.END:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.END								 *
 	methodLinear->addInstrToTail("mov", "rbp", "rsp");													//		boiler plate end stuff					 *
 	methodLinear->addInstrToTail("ret");																//		return @ r15							 *
 																										//************************************************
@@ -1776,7 +1776,7 @@ void doIf(InstructionList &methodLinear, Node *expression) {
 	makeExprIR_recursive(methodLinear, (Node*)children[0]);
 	methodLinear.addInstrToTail("pop", "rax");
 	methodLinear.addInstrToTail("mov", "[rax+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rax");
-	methodLinear.addInstrToTail("cmp", "rax", std::to_string(false));
+	methodLinear.addInstrToTail("cmp", std::to_string(false), "rax");
 	
 	//write jump to go to else
 	methodLinear.addInstrToTail("je", "If_Else" + std::to_string(countSave));
