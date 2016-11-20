@@ -245,7 +245,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("String.substr", makeSubstrIR());
 
 	retMap->emplace(".data", makeStringsIR());
-	retMap->emplace("#case error handling", makeCaseErrorIR());
+	retMap->emplace("case_error", makeCaseErrorIR());
 
 	return retMap;
 }
@@ -1862,8 +1862,9 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 */
 InstructionList &makeCaseErrorIR() 
 {
-	InstructionList*caseErr = new InstructionList;
-	//errorHandlerDoExit(*caseErr, "case_error", "Case without matching branch");
+	InstructionList *caseErr = new InstructionList;
+	caseErr->addNewNode();
+	errorHandlerDoExit(*caseErr, "#case_error", "Case without matching branch");
 	return *caseErr;
 }
 
