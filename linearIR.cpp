@@ -695,11 +695,14 @@ InstructionList &makeCopyIR()
 	//move r13 from holding into rdx for function call								//															  *
 	methodLinear->addInstrToTail("mov", "r13", "rdx");								//	move r13 into rdx. This was done to save r13 during call  *
 																					//															  *
+	//move source into rsi															//															  *
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rsi");							//	move source address into rsi						      *
+																					//															  *
 	//call memcpy																	//															  *
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rsi");							//	call memcpy with args rdi,rsi,rdx						  *
+	methodLinear->addInstrToTail("call", "memcpy)");								//	call memcpy with args rdi,rsi,rdx						  *
 																					//															  *
 	//return pointer to the copied object											//															  *
-	methodLinear->addInstrToTail("mov", "r15");										//	move the return of memcpy into r15						  *
+	methodLinear->addInstrToTail("mov", "rax", "r15");								//	move the return of memcpy into r15						  *
 																					//															  *
 	//boiler plate exit stuff														//															  *
 	methodLinear->addInstrToTail("mov", "rbp", "rsp");								//	boiler plate exit stuff									  *
