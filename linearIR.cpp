@@ -639,7 +639,7 @@ InstructionList &makeLThandler() {
 	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");												//		jump to LT.HANDLER.END					*
 	//if false move 0 into bool																			//												*
 	methodLinear->addInstrToTail("LT.HANDLER.FALSE:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								*
-	methodLinear->addInstrToTail("mov", "0", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					*
+	methodLinear->addInstrToTail("mov", "0", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					*
 																										//												*
 	//return the bool and return from function															//												*
 	methodLinear->addInstrToTail("LT.HANDLER.END:","","",InstructionList::INSTR_LABEL);					//LT.HANDLER.END								*
@@ -678,7 +678,7 @@ InstructionList &makeLTEhandler() {
 	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");												//		jump to LT.HANDLER.END					 *
 	//if false move 0 into bool																			//												 *
 	methodLinear->addInstrToTail("LT.HANDLER.FALSE", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								 *
-	methodLinear->addInstrToTail("mov", "0", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					 *
+	methodLinear->addInstrToTail("mov", "0", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					 *
 																										//												 *
 	//return the bool and return from function															//												 *
 	methodLinear->addInstrToTail("LT.HANDLER.END", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.END								 *
