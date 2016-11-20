@@ -632,14 +632,14 @@ InstructionList &makeLThandler() {
 																											//												*
 	//compare the values																					//												*
 	methodLinear->addInstrToTail("cmp", "rbx", "rax");														//		comapre rbx and rax						*
-	methodLinear->addInstrToTail("jge", "LT.HANDLER.FALSE");												//		if false jump to LT.HANDLER.FALSE		*
+	methodLinear->addInstrToTail("jl", "LT.HANDLER.TRUE");												//		if false jump to LT.HANDLER.FALSE		*
 																											//												*
-	//if true move 1 into bool																				//												*
-	methodLinear->addInstrToTail("mov", "1", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");	//		move 1 into bool value					*
-	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");													//		jump to LT.HANDLER.END					*
 	//if false move 0 into bool																				//												*
-	methodLinear->addInstrToTail("LT.HANDLER.FALSE:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								*
-	methodLinear->addInstrToTail("mov", "0", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");	//		move 0 into bool value					*
+	methodLinear->addInstrToTail("mov", "0", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");	//		move 1 into bool value					*
+	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");													//		jump to LT.HANDLER.END					*
+	//if true move 1 into bool																				//												*
+	methodLinear->addInstrToTail("LT.HANDLER.TRUE:", "", "", InstructionList::INSTR_LABEL);					//LT.HANDLER.FALSE								*
+	methodLinear->addInstrToTail("mov", "1", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");	//		move 0 into bool value					*
 																											//												*
 	//return the bool and return from function																//												*
 	methodLinear->addInstrToTail("LT.HANDLER.END:","","",InstructionList::INSTR_LABEL);						//LT.HANDLER.END								*
