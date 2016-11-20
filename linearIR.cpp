@@ -620,21 +620,19 @@ InstructionList &makeTypeNameIR()
 	methodLinear->addNewNode();
 
 	//methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("mov", "rsp", "rbp");
+	atCalleeEntry(*methodLinear);
 	
 	//make new string
 	methodLinear->addComment("Making new string");
 	makeNew(*methodLinear, "String");
 	
 	//Getting the vtable value for self object
-	methodLinear->addInstrToTail("mov", "[rax + 16]", "rdi");
-	//I think this is suppose to be a dereference
-	//or just getting the value
-	methodLinear->addInstrToTail("mov", "[rdi + 0]", "rdi");
+	methodLinear->addInstrToTail("mov", "[rbp + 8]", "rdi");
+	methodLinear->addInstrToTail("mov", "[rdi+16]", "rax");
+	methodLinear->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 	
 	//return
-	methodLinear->addInstrToTail("mov", "rbp", "rsp");
-	methodLinear->addInstrToTail("ret");
+	atCalleeExit(*methodLinear);
 
 	return *methodLinear;
 }
@@ -752,7 +750,7 @@ InstructionList &makeCopyIR()
 	methodLinear->addInstrToTail("mov", "[rbp+8]", "rsi");							//	move source address into rsi						      *
 																					//															  *
 	//call memcpy																	//															  *
-	methodLinear->addInstrToTail("call", "memcpy");								//	call memcpy with args rdi,rsi,rdx						  *
+	methodLinear->addInstrToTail("call", "memcpy");									//	call memcpy with args rdi,rsi,rdx						  *
 																					//															  *
 	//return pointer to the copied object											//															  *
 	methodLinear->addInstrToTail("mov", "rax", "r15");								//	move the return of memcpy into r15						  *
@@ -818,15 +816,32 @@ InstructionList &makeInStringIR()
 	methodLinear->addNewNode();
 
 	methodLinear->addInstrToTail("mov", "rsp", "rbp");
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");
 	
 	//Making the new string
 	makeNew(*methodLinear, "String");
-	
-	//call to fgets
+
+	//calloc 16 bytes of memory for fgets										//	--PREPARE TO CALL CALLOC--							*
+	methodLinear->addInstrToTail("mov", "1", "rdi");							//	move 1 into rdi so we have 1 element				*
+	methodLinear->addInstrToTail("mov", "4096", "rsi");							//	move 16 into rsi so we have 16 elements				*
+	methodLinear->addInstrToTail("call", "calloc");								//	call calloc											*
+																				//														*
+																				//save memory pointer from calloc for later									//														*
+	methodLinear->addInstrToTail("push", "rax");								//	save pointer to callod'c memory for later			*
+																				//														*
+																				//call fgets with stdin														//	--PREPARE TO CALL FGETS--							*
+	methodLinear->addInstrToTail("mov", "rax", "rdi");							//	move pointer to calloc'd memory into rdi			*
+	methodLinear->addInstrToTail("mov", "4096", "rsi");							//	move 16 into rsi to read 16 characters				*
+	methodLinear->addInstrToTail("mov", "0", "rdx");							//	move value for stdin into rdx						*
 	methodLinear->addInstrToTail("call", "fgets");
 
+
+	
+	//call to fgets
+	methodLinear->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
+
 	//return methods
+	methodLinear->addInstrToTail("pop", "rdi");
+	methodLinear->addInstrToTail("call", "free");
 	methodLinear->addInstrToTail("mov", "rbp", "rsp");
 	methodLinear->addInstrToTail("ret");
 
@@ -842,21 +857,27 @@ InstructionList &makeOutIntIR()
 	methodLinear->addNewNode();
 	methodLinear->addComment("out_int function");
 
-	methodLinear->addInstrToTail("mov","rsp", "rbp");
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");
-	methodLinear->addInstrToTail("mov", "[rax+24]", "rdi");
+	//add string to data table
+	size_t stringNum = globalStringTable.size();
+	globalStringTable[stringNum] = "%d";
+	string stringName = ".string" + std::to_string(stringNum);
 
-	//convert to decimal
-	methodLinear->addInstrToTail("cdqe");
-	methodLinear->addInstrToTail("mov", "rsi", "rax");
+	//boiler plate entry
+	atCalleeEntry(*methodLinear);
+
+	getMethodParamIntoRegister(*methodLinear, 1, "rax");
+	methodLinear->addInstrToTail("xor", "rsi", "rsi");
+	methodLinear->addInstrToTail("mov", "[rax+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rsi");
+
+	//cdqe call
+	//methodLinear->addInstrToTail("cdqe");
 
 	//calls the printf function
+	methodLinear->addInstrToTail("lea", stringName, "rdi");
 	methodLinear->addInstrToTail("call", "printf");
-	methodLinear->addInstrToTail("pop", "rbp");
-	
+		
 	//return
-	methodLinear->addInstrToTail("mov","rbp", "rsp");
-	methodLinear->addInstrToTail("ret");
+	atCalleeExit(*methodLinear);
 
 	return *methodLinear;
 }
@@ -924,7 +945,7 @@ InstructionList &makeInIntIR()
 	return *methodLinear;
 }
 
-/*
+/* Check for Off By One Error
  * @author: Matt
  */ 
 InstructionList &makeLengthIR()
@@ -1010,7 +1031,7 @@ InstructionList &makeConcatIR()
 
 	methodLinear->addInstrToTail("pop", "r10");
 	methodLinear->addInstrToTail("add", "r14", "r10");
-
+	methodLinear->addInstrToTail("incr", "r10");
 
 	/*make space for final string*/
 	callCalloc(*methodLinear, "r10", "1");
@@ -1028,7 +1049,7 @@ InstructionList &makeConcatIR()
 	methodLinear->addInstrToTail("pop", "rdi #I swear we want these two functions. Trust me.");
 	methodLinear->addInstrToTail("push", "rdi");
 	getMethodParamIntoRegister(*methodLinear, 1, "r11");
-	methodLinear->addInstrToTail("mov", "[r11 + 24]", "rsi");
+	methodLinear->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rsi");
 
 	methodLinear->addInstrToTail("call", "strcat");
 
@@ -1048,7 +1069,7 @@ InstructionList &makeConcatIR()
 
 InstructionList &makeSubstrIR()
 {
-	string startGreaterThanEndLabel = "SUBSTR.HANDLER.SGTE";
+	//TODO: Check if start or length is negative
 	string endGreaterThanStringEndLabel = "SUBSTR.HANDLER.EGTLENSTR";
 	InstructionList *methodLinear = new InstructionList;
 
@@ -1056,13 +1077,14 @@ InstructionList &makeSubstrIR()
 	methodLinear->addComment("Returns part of a string that is a certain length.");
 
 	atCalleeEntry(*methodLinear);
-	/*Check if param2 < param1 is negative. If it is, error and exit*/ 
+
+
+	/*Get params and change second to be the spot of a character*/ 
 	getMethodParamIntoRegister(*methodLinear, 1, "r10");
 	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r12");
 	getMethodParamIntoRegister(*methodLinear, 2, "r11");
 	methodLinear->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r13");
-	methodLinear->addInstrToTail("cmp", "r12", "r13");
-	methodLinear->addInstrToTail("jg", startGreaterThanEndLabel);
+	methodLinear->addInstrToTail("add", "r12", "r13");
 
 	/*get length of self*/
 	getMethodParamIntoRegister(*methodLinear, 0, "r14");
@@ -1083,19 +1105,21 @@ InstructionList &makeSubstrIR()
 	//methodLinear->addInstrToTail("push", "r15");
 
 	/*Get address of string and add param1's int value*/
-	getMethodParamIntoRegister(*methodLinear, 0, "r14");
-	methodLinear->addInstrToTail("mov", "[r14+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r14");
-	methodLinear->addInstrToTail("add", "r8", "r15");
-
-	/*make space the size of param2 - param1*/
 	methodLinear->addInstrToTail("pop", "r9");
-	methodLinear->addInstrToTail("sub", "r8", "r9");
+	getMethodParamIntoRegister(*methodLinear, 0, "r14");
+	methodLinear->addInstrToTail("mov", "[r14+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r15");
+	methodLinear->addInstrToTail("add", "r9", "r15");
 	methodLinear->addInstrToTail("push", "r9");
-	callCalloc(*methodLinear, "r9", "1");
 
-	/*memcpy size of param2 - param1 into new space*/
+	/*make space the size of param2 + 1*/
+	methodLinear->addInstrToTail("push", "r8");
+	methodLinear->addInstrToTail("incr", "r8");
+	callCalloc(*methodLinear, "r8", "1");
+
+	/*memcpy size of param2 + 1 into new space*/
 	methodLinear->addInstrToTail("mov", "rax", "rdi");
-	methodLinear->addInstrToTail("pop", "rdx");
+	getMethodParamIntoRegister(*methodLinear, 2, "rdx");
+	methodLinear->addInstrToTail("mov", "[rdx+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rdx");
 	methodLinear->addInstrToTail("mov", "r15", "rsi");
 	methodLinear->addInstrToTail("call", "memcpy");
 
@@ -1107,9 +1131,6 @@ InstructionList &makeSubstrIR()
 
 	/*Return above newly created string*/
 	atCalleeExit(*methodLinear);
-
-	/*end < start error handler*/
-	errorHandlerDoExit(*methodLinear, startGreaterThanEndLabel,"Substring end was less than start.");
 
 	/*end > len(self) handler*/
 	errorHandlerDoExit(*methodLinear, endGreaterThanStringEndLabel,"End value was past the end of the string.");
