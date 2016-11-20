@@ -408,8 +408,7 @@ InstructionList &makeIntIR()
 	//handle return address
 	intLinear->addNewNode();
 	intLinear->addComment("Class " + className + " Initialization");
-	//intLinear->addInstrToTail("push", "rbp");
-	intLinear->addInstrToTail("mov", "rsp", "rbp");
+	atCalleeEntry(*intLinear);
 
 
 	int tag = globalSymTable->getClassTag(className);
@@ -438,16 +437,14 @@ InstructionList &makeIOIR()
 	ioLinear->addNewNode();
 	ioLinear->addComment("Class " + className + " Initialization");
 	atCalleeEntry(*ioLinear);
-
 	int tag = globalSymTable->getClassTag(className);
-	int size = 3; //3 object 0 data
-
-	objectInit(*ioLinear, className, tag, size);
-
+	int size = 3;
+	
 	//place return value in r15
 	ioLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
 
 	atCalleeExit(*ioLinear);
+
 	return *ioLinear;
 }
 
@@ -461,6 +458,8 @@ InstructionList &makeObjectIR()
 	objLinear->addNewNode();
 	objLinear->addComment("Class " + className + " Initialization");
 
+	atCalleeEntry(*objLinear);
+
 	int tag = globalSymTable->getClassTag(className);
 	//Assuming that object has no data associated with it
 	int size = 3;
@@ -471,6 +470,7 @@ InstructionList &makeObjectIR()
 	objLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
 
 	atCalleeExit(*objLinear);
+
 	return *objLinear;
 }
 
@@ -513,12 +513,12 @@ InstructionList &makeBoolIR()
 	string className = "Bool";
 	booLinear->addNewNode();
 	booLinear->addComment("Class " + className + " Initialization");
+	atCalleeEntry(*booLinear);
 
 	int tag = globalSymTable->getClassTag(className);
 	int size = 4;
 
 	atCalleeEntry(*booLinear);
-
 	objectInit(*booLinear, className, tag, size);
 
 	//place return value in r15
@@ -611,12 +611,29 @@ InstructionList &makeAbortIR()
 	return *methodLinear;
 }
 
+/**
+* author: Benji
+*/
 InstructionList &makeTypeNameIR()
 {
 	InstructionList *methodLinear = new InstructionList;
-
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
+
+	//methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");
+	
+	//make new string
+	methodLinear->addComment("Making new string");
+	makeNew(*methodLinear, "String");
+	
+	//Getting the vtable value for self object
+	methodLinear->addInstrToTail("mov", "[rax + 16]", "rdi");
+	//I think this is suppose to be a dereference
+	//or just getting the value
+	methodLinear->addInstrToTail("mov", "[rdi + 0]", "rdi");
+	
+	//return
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");
 	methodLinear->addInstrToTail("ret");
 
 	return *methodLinear;
@@ -791,23 +808,54 @@ InstructionList &makeOutStringIR()
 	return *methodLinear;
 }
 
+
+/**
+* author: Benji
+*/
 InstructionList &makeInStringIR()
 {
 	InstructionList *methodLinear = new InstructionList;
-
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
+
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");
+	
+	//Making the new string
+	makeNew(*methodLinear, "String");
+	
+	//call to fgets
+	methodLinear->addInstrToTail("call", "fgets");
+
+	//return methods
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");
 	methodLinear->addInstrToTail("ret");
 
 	return *methodLinear;
 }
 
+/**
+* author: Benji
+*/
 InstructionList &makeOutIntIR()
 {
 	InstructionList *methodLinear = new InstructionList;
-
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addComment("out_int function");
+
+	methodLinear->addInstrToTail("mov","rsp", "rbp");
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");
+	methodLinear->addInstrToTail("mov", "[rax+24]", "rdi");
+
+	//convert to decimal
+	methodLinear->addInstrToTail("cdqe");
+	methodLinear->addInstrToTail("mov", "rsi", "rax");
+
+	//calls the printf function
+	methodLinear->addInstrToTail("call", "printf");
+	methodLinear->addInstrToTail("pop", "rbp");
+	
+	//return
+	methodLinear->addInstrToTail("mov","rbp", "rsp");
 	methodLinear->addInstrToTail("ret");
 
 	return *methodLinear;
