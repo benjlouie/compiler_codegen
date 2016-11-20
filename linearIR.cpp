@@ -723,7 +723,7 @@ InstructionList &makeOutStringIR()
 
 	//add string to data table
 	size_t stringNum = globalStringTable.size();
-	globalStringTable[stringNum] = " db \"%s\", 10, 0";
+	globalStringTable[stringNum] = "%s";
 	string stringName = ".string" + std::to_string(stringNum);
 
 
@@ -827,10 +827,11 @@ InstructionList &makeInIntIR()
 																				//														*
 	//check to make sure the return of sscanf is between INT_MAX and INT_MIN	//														*
 	methodLinear->addInstrToTail("pop", "rax");									//	pop our temp value into rax							*
+	methodLinear->addInstrToTail("xor", "rsi","rsi");							//	clear out register rsi 
 	methodLinear->addInstrToTail("cmp", "2147483647", "rax");					//	check to see if value > INT_MAX						*
-	methodLinear->addInstrToTail("cmov", "0", "rax");							//	if greater than set to 0							*
+	methodLinear->addInstrToTail("cmovg", "rsi", "rax");						//	if greater than set to 0							*
 	methodLinear->addInstrToTail("cmp", "-2147483648", "rax");					//	check to see if value < INT_MIN						*
-	methodLinear->addInstrToTail("cmov", "0", "rax");							//	if less than set to 0								*
+	methodLinear->addInstrToTail("cmovl", "rsi", "rax");						//	if less than set to 0								*
 																				//														*
 	//move value into the int we made in the beginning							//														*
 	methodLinear->addInstrToTail("mov", "rax", "[r15+24]");						//	move the final value into the int we created		*
