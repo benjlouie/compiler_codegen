@@ -671,17 +671,17 @@ InstructionList &makeLTEhandler() {
 																										//												 *
 	//	compare the values																				//												 *
 	methodLinear->addInstrToTail("cmp", "rax", "rbx");													//		comapre rbx and rax						 *
-	methodLinear->addInstrToTail("jg", "LT.HANDLER.FALSE");												//		if false jump to LT.HANDLER.FALSE		 *
+	methodLinear->addInstrToTail("jg", "LTE.HANDLER.FALSE");												//		if false jump to LT.HANDLER.FALSE		 *
 																										//												 *
 	//if true move 1 into bool																			//												 *
 	methodLinear->addInstrToTail("mov", "1", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					 *
-	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");												//		jump to LT.HANDLER.END					 *
+	methodLinear->addInstrToTail("jmp", "LTE.HANDLER.END");												//		jump to LT.HANDLER.END					 *
 	//if false move 0 into bool																			//												 *
-	methodLinear->addInstrToTail("LT.HANDLER.FALSE:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								 *
+	methodLinear->addInstrToTail("LTE.HANDLER.FALSE:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								 *
 	methodLinear->addInstrToTail("mov", "0", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					 *
 																										//												 *
 	//return the bool and return from function															//												 *
-	methodLinear->addInstrToTail("LT.HANDLER.END:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.END								 *
+	methodLinear->addInstrToTail("LTE.HANDLER.END:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.END								 *
 	methodLinear->addInstrToTail("mov", "rbp", "rsp");													//		boiler plate end stuff					 *
 	methodLinear->addInstrToTail("ret");																//		return @ r15							 *
 																										//************************************************
