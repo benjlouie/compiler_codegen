@@ -1,4 +1,4 @@
-#include "linearIR.h"
+#include "../compiler_codegen/linearIR.h"
 
 // IMPORTANT REGISTER INFO
 // volatile registers: (destroyed on function call)
@@ -51,7 +51,20 @@ public:
 	int getOffset(std::string name) {
 		return vars[name].top();
 	}
-
+	void addCaseVars(vector<string> ids) {
+		for (string id : ids) {
+			vars[id].push(varOffset);
+		}
+		varOffset -= 8;
+	}
+	void removeCaseVars(vector<string> ids) {
+		for (string id : ids) {
+			vars[id].pop();
+			if (vars[id].size() == 0)
+				vars.erase(id);
+		}
+		varOffset += 8;
+	}
 private:
 	std::unordered_map<std::string, std::stack<int>> vars;
 	int formalOffset;
@@ -85,6 +98,14 @@ InstructionList &makeConcatIR();
 InstructionList &makeSubstrIR();
 InstructionList &makeLThandler();
 InstructionList &makeLTEhandler();
+InstructionList &makeCaseErrorIR();
+
+/*Some helper functions*/
+void atCalleeExit(InstructionList &methodLinear);
+void atCalleeEntry(InstructionList &methodLinear);
+void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut);
+void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement);
+void errorHandlerDoExit(InstructionList &methodLinear, string label, string error);
 
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
@@ -111,6 +132,7 @@ void doIf(InstructionList &methodLinear, Node *expression);
 void doAssign(InstructionList &methodLinear, Node *expression);
 void doLet(InstructionList &methodLinear, Node *expression);
 void doDispatch(InstructionList &methodLinear, Node *expression);
+void doCaseStatement(InstructionList &methodLinear, Node *expression);
 
 void objectInit(InstructionList &classLinear, string name, int tag, size_t size);
 void setupMethodCall(InstructionList &methodLinear, string methodName, vector<string> formals);
@@ -227,6 +249,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("LTE..Handler", makeLTEhandler());
 
 	retMap->emplace(".data", makeStringsIR());
+	retMap->emplace("#case error handling", makeCaseErrorIR());
 
 	return retMap;
 }
@@ -283,7 +306,7 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 
 	//TODO make space for locals
 
-	int tag = 0; //TODO get an actual tag
+	int tag = globalSymTable->getClassTag(className);
 
 	//get the size from the already calculated offsets
 	int max = -8; //if no variables are found, this will produce correct size
@@ -394,7 +417,7 @@ InstructionList &makeIntIR()
 	intLinear->addInstrToTail("mov", "rsp", "rbp");
 
 
-	int tag = 0; //TODO get an actual tag
+	int tag = globalSymTable->getClassTag(className);
 	int size = 4; //3 object 1 data
 
 	objectInit(*intLinear, className, tag, size);
@@ -423,7 +446,7 @@ InstructionList &makeIOIR()
 	//comment added
 	ioLinear->addComment("Class " + className + " Initialization");
 	ioLinear->addInstrToTail("mov", "rsp", "rbp");
-	int tag = 0;
+	int tag = globalSymTable->getClassTag(className);
 	int size = 3;
 	objectInit(*ioLinear, className, tag, size);
 	ioLinear->addInstrToTail("ret");
@@ -440,7 +463,7 @@ InstructionList &makeObjectIR()
 	objLinear->addNewNode();
 	//comment added
 	objLinear->addComment("Class " + className + " Initialization");
-	int tag = 0;
+	int tag = globalSymTable->getClassTag(className);
 	int size = 3;
 	objLinear->addInstrToTail("mov", "rsp", "rbp");
 	objectInit(*objLinear, className, tag, size);
@@ -460,7 +483,7 @@ InstructionList &makeStringIR()
 	//comment added
 	strLinear->addComment("Class " + className + " Initialization");
 	strLinear->addInstrToTail("mov", "rsp", "rbp");
-	int tag = 0;
+	int tag = globalSymTable->getClassTag(className);
 	int size = 4;
 
 	objectInit(*strLinear, className, tag, size);
@@ -487,7 +510,7 @@ InstructionList &makeBoolIR()
 	booLinear->addNewNode();
 	//comment added
 	booLinear->addComment("Class " + className + " Initialization");
-	int tag = 0;
+	int tag = globalSymTable->getClassTag(className);
 	int size = 4;
 	booLinear->addInstrToTail("mov", "rsp", "rbp");
 	booLinear->addInstrToTail("ret");
@@ -843,40 +866,269 @@ InstructionList &makeInIntIR()
 	return *methodLinear;
 }
 
+/*
+ * @author: Matt
+ */ 
 InstructionList &makeLengthIR()
 {
+	/*Idea gotten from http://www.int80h.org/strlen/ */
 	InstructionList *methodLinear = new InstructionList;
 
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("ret");
+	methodLinear->addComment("Get length of string");
+	atCalleeEntry(*methodLinear);
+	
+	//Make ECX == max unsigned int == -1
+	methodLinear->addInstrToTail("xor","rcx", "rcx");
+	methodLinear->addInstrToTail("not","rcx");
+
+	//make AL == 0
+	methodLinear->addInstrToTail("xor","al","al");
+
+	//put string pointer into rdi
+	getMethodParamIntoRegister(*methodLinear, 0, "r10");
+	/*CHECK ME TO MAKE SURE I'M GETTING STRING RIGHT.*/
+	methodLinear->addInstrToTail("mov", "r10+24", "rdi");
+
+	//clear flag
+	methodLinear->addInstrToTail("cld");
+	
+	//Search for the first occurence of a byte == al, which is 0
+	//Decreases ECX every time it scans a byte
+	//Goes until it finds == al OR ECX == 0
+	methodLinear->addInstrToTail("repne", "scasb");
+
+	//String length is now in ecx - kinda. ecx == -strlen - 2
+	//SO not ecx and sub 1.
+	methodLinear->addInstrToTail("not","ecx");
+	methodLinear->addInstrToTail("dec", "ecx");
+
+	//Put value into int object to return
+	//Store value on stack
+	methodLinear->addInstrToTail("push", "rcx");
+
+	//Make new integer
+	setupMethodCall(*methodLinear, "Int..new", { "rax" });
+
+	//Pop value into register
+	methodLinear->addInstrToTail("pop", "r14");
+
+	//Put into place in new Int object, and leave the object in r15 to return.
+	methodLinear->addInstrToTail("mov", "r14", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	atCalleeExit(*methodLinear);
 
 	return *methodLinear;
 }
 
+/*
+ * @author: Matt 
+ */
 InstructionList &makeConcatIR()
 {
 	InstructionList *methodLinear = new InstructionList;
 
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("ret");
+	methodLinear->addComment("Concatenate two strings into 1");
+	atCalleeEntry(*methodLinear);
 
+	//c calling conventions
+	//RDI RSI RDX RCX
+	//RETURN IN RAX
+
+	/*get length of final string*/
+	//Get self
+	getMethodParamIntoRegister(*methodLinear, 0, "r10");
+	//Call strlen on it
+	setupMethodCall(*methodLinear, "String.length", { "r10" });
+	//get the length of the string onto the stack
+	methodLinear->addInstrToTail("mov", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r14");
+	methodLinear->addInstrToTail("push", "r14");
+
+	//Same as above for self, except now it's the first formal param
+	getMethodParamIntoRegister(*methodLinear, 1, "r11");
+	setupMethodCall(*methodLinear, "String.length", { "r11" });
+	methodLinear->addInstrToTail("mov", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r14");
+
+	methodLinear->addInstrToTail("pop", "r10");
+	methodLinear->addInstrToTail("add", "r14", "r10");
+
+
+	/*make space for final string*/
+	callCalloc(*methodLinear, "r10", "1");
+
+	/*copy in self*/
+	methodLinear->addInstrToTail("push", "rax");
+	methodLinear->addInstrToTail("mov", "rax", "rdi");
+	getMethodParamIntoRegister(*methodLinear, 0, "r10");
+	methodLinear->addInstrToTail("mov", "r10+" + to_string(DEFAULT_VAR_OFFSET), "rsi");
+
+	methodLinear->addInstrToTail("call", "strcpy");
+
+	/*concatenate the second one*/
+	//Pop the created mem, and then push to save it again.
+	methodLinear->addInstrToTail("pop", "rdi #I swear we want these two functions. Trust me.");
+	methodLinear->addInstrToTail("push", "rdi");
+	getMethodParamIntoRegister(*methodLinear, 1, "r11");
+	methodLinear->addInstrToTail("mov", "r11 + 24", "rsi");
+
+	methodLinear->addInstrToTail("call", "strcat");
+
+	/*put the new string into a string object to return*/
+	//Make a new string to put this into.
+	setupMethodCall(*methodLinear, "String..new", { "rax" });
+
+	//put new string into return object
+	methodLinear->addInstrToTail("pop", "r10");
+	methodLinear->addInstrToTail("mov", "r10", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");	
+
+	//return that new object
+	atCalleeExit(*methodLinear);
+	
 	return *methodLinear;
 }
 
 InstructionList &makeSubstrIR()
 {
+	string startGreaterThanEndLabel = "SUBSTR.HANDLER.SGTE";
+	string endGreaterThanStringEndLabel = "SUBSTR.HANDLER.EGTLENSTR";
 	InstructionList *methodLinear = new InstructionList;
 
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("ret");
+	methodLinear->addComment("Returns part of a string that is a certain length.");
+
+	atCalleeEntry(*methodLinear);
+	/*Check if param2 < param1 is negative. If it is, error and exit*/ 
+	getMethodParamIntoRegister(*methodLinear, 1, "r10");
+	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r12");
+	getMethodParamIntoRegister(*methodLinear, 2, "r11");
+	methodLinear->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r13");
+	methodLinear->addInstrToTail("cmp", "r12", "r13");
+	methodLinear->addInstrToTail("jg", startGreaterThanEndLabel);
+
+	/*get length of self*/
+	getMethodParamIntoRegister(*methodLinear, 0, "r14");
+	//Save param1 and then param2, since destroyed on function call
+	methodLinear->addInstrToTail("push", "r12");
+	methodLinear->addInstrToTail("push", "r13");
+	//Get length
+	setupMethodCall(*methodLinear, "String.length", { "r14" });
+	methodLinear->addInstrToTail("mov", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r15");
+
+	/*Check if end > len(self). If it is, error and exit*/
+	//compare param2 to length
+	methodLinear->addInstrToTail("pop", "r8");
+	methodLinear->addInstrToTail("cmp", "r8", "r15");
+	methodLinear->addInstrToTail("jg", endGreaterThanStringEndLabel);
+
+	//CHECK IF NEED TO SAVE LENGTH OF ORIGINAL STRING - I DON'T THINK SO, BUT IF you do uncomment the next line.'
+	//methodLinear->addInstrToTail("push", "r15");
+
+	/*Get address of string and add param1's int value*/
+	getMethodParamIntoRegister(*methodLinear, 0, "r14");
+	methodLinear->addInstrToTail("mov", "[r14+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r14");
+	methodLinear->addInstrToTail("add", "r8", "r15");
+
+	/*make space the size of param2 - param1*/
+	methodLinear->addInstrToTail("pop", "r9");
+	methodLinear->addInstrToTail("sub", "r8", "r9");
+	methodLinear->addInstrToTail("push", "r9");
+	callCalloc(*methodLinear, "r9", "1");
+
+	/*memcpy size of param2 - param1 into new space*/
+	methodLinear->addInstrToTail("mov", "rax", "rdi");
+	methodLinear->addInstrToTail("pop", "rdx");
+	methodLinear->addInstrToTail("mov", "r15", "rsi");
+	methodLinear->addInstrToTail("call", "memcpy");
+
+	/*Make new string and put in created space*/
+	methodLinear->addInstrToTail("push", "rax");
+	setupMethodCall(*methodLinear, "String..new", { "rax" });
+	methodLinear->addInstrToTail("pop", "r10");
+	methodLinear->addInstrToTail("mov", "r10", "[r15+"+ to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	/*Return above newly created string*/
+	atCalleeExit(*methodLinear);
+
+	/*end < start error handler*/
+	errorHandlerDoExit(*methodLinear, startGreaterThanEndLabel,"Substring end was less than start.");
+
+	/*end > len(self) handler*/
+	errorHandlerDoExit(*methodLinear, endGreaterThanStringEndLabel,"End value was past the end of the string.");
+
 
 	return *methodLinear;
 }
 
 /*Built in function definitions end*/
+
+/*Helper functions start */
+
+/*
+ * @author: Matt 
+ */
+void atCalleeEntry(InstructionList &methodLinear)
+{
+	methodLinear.addInstrToTail("mov", "rsp", "rbp");
+}
+
+/*
+ * @author: Matt 
+ */
+void atCalleeExit(InstructionList &methodLinear)
+{
+	methodLinear.addInstrToTail("mov", "rbp", "rsp");
+	methodLinear.addInstrToTail("ret");
+}
+
+/*
+ * @author: Matt 
+ */
+void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut)
+{
+	int numOffRBP = 8 + 8*numParam;
+	methodLinear.addInstrToTail("mov", "[rbp + " + to_string(numOffRBP) + "]", placeToPut);
+}
+
+/*
+ * @author: Matt 
+ */
+void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement)
+{
+	methodLinear.addInstrToTail("mov", paramHoldNumElements, "rdi");
+	methodLinear.addInstrToTail("mov", paramHoldSizeOfEachElement, "rsi");
+
+	methodLinear.addInstrToTail("call", "calloc");
+}
+
+/*
+ * @author: Mostly Robert, with a touch of Matt 
+ */
+void errorHandlerDoExit(InstructionList &methodLinear, string label, string error)
+{
+	//add label
+	methodLinear.addInstrToTail(label, "","", InstructionList::INSTR_LABEL);
+
+	//add string to data table
+	size_t stringNum = globalStringTable.size();
+	globalStringTable[stringNum] = "ERROR: " + error;
+	string stringName = ".string" + to_string(stringNum);
+
+	//load string into rdi
+	methodLinear.addInstrToTail("lea", stringName, "rdi");
+
+	//call puts
+	methodLinear.addInstrToTail("call", "puts");
+
+	//move 1 into rdi for return val
+	methodLinear.addInstrToTail("mov", "1", "rdi");
+
+	//call exit with error code 1
+	methodLinear.addInstrToTail("call", "exit");
+}
+
+/*Helper functions end */
+
 /*
 * Author: Matt, Robert, Ben
 */
@@ -891,7 +1143,7 @@ InstructionList &makeMethodIR(Node *feat)
 
 	//method initialization
 	methodInit(*methodLinear, feat);
-	
+
 	//go through method expressions
 	makeExprIR_recursive(*methodLinear, expression);
 
@@ -1025,6 +1277,7 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 		doLet(methodLinear, expression);
 		break;
 	case AST_CASESTATEMENT:
+		doCaseStatement(methodLinear, expression);
 		break;
 	case AST_CASE:
 		break;
@@ -1710,6 +1963,118 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 
 	methodLinear.addNewNode();
 	methodLinear.addComment("End of function call to " + method->value);
+}
+
+/*
+* Authors: Forest, Ben
+*/
+void doCaseStatement(InstructionList &methodLinear, Node *expression)
+{
+	int caseLabelSave = caseLabelCount++;
+	methodLinear.addNewNode();
+	methodLinear.addComment("start case" + to_string(caseLabelSave));
+
+	auto children = expression->getChildren();
+	Node *caseExpr = (Node *)children[0];
+	Node *caseList = (Node *)children[1];
+	makeExprIR_recursive(methodLinear, caseExpr);
+	methodLinear.addInstrToTail("pop", "rax");
+	methodLinear.addInstrToTail("mov", "[rax]", "rbx");
+
+	//sort cases and grab ids
+	vector<string> varNames;
+	vector<Node *> cases;
+	for (auto tchld : caseList->getChildren()) {
+		Node *chld = (Node *)tchld;
+		cases.push_back(chld);
+		varNames.push_back(((Node *)chld->getChildren()[0])->value);
+	}
+	
+	methodLinear.addInstrToTail("lea", "case" + to_string(caseLabelSave) + "_table", "r12");
+	methodLinear.addInstrToTail("jmp", "[r12+rbx*8+0]");
+	//case#_table (for jmp table)
+	methodLinear.addInstrToTail("case" + to_string(caseLabelSave) + "_table:", "", "", InstructionList::INSTR_LABEL);
+
+	auto  cmpr = [](Node *a, Node *b) -> bool {
+		Node *atype = (Node *)a->getChildren()[1];
+		int atag = globalSymTable->getClassTag(atype->value);
+		Node *btype = (Node *)b->getChildren()[1];
+		int btag = globalSymTable->getClassTag(btype->value);
+		return btag < atag;
+	};
+	std::sort(cases.begin(), cases.end(), cmpr);
+
+	auto caseType = [](Node *n) -> string {
+		Node *ntype = (Node *)n->getChildren()[1];
+		return ntype->value;
+	};
+
+	//setup jump table
+	vector<string> jmpTable;
+	vector<string> allTypes;
+	for (auto type : globalTypeList) {
+		allTypes.push_back(type.first);
+	}
+	auto jmpTableCmp = [](string a, string b) -> bool {
+		string aClass = a.substr(a.find("_") + 1);
+		string bClass = b.substr(b.find("_") + 1);
+		return globalSymTable->getClassTag(aClass) < globalSymTable->getClassTag(bClass);
+	};
+	std::sort(allTypes.begin(), allTypes.end(), jmpTableCmp);
+
+	for (auto type : allTypes) {
+		string tag = "";
+		for (Node *cs : cases) {
+			string cType = caseType(cs);
+			if (globalSymTable->isSubClass(type, cType)) {
+				tag = "case" + to_string(caseLabelSave) + "_" + cType;
+				break;
+			}
+		}
+		if (tag == "") {
+			tag = "case_error";
+		}
+
+		jmpTable.push_back(tag);
+	}
+
+	//put table directly into assembly
+	for (string tag : jmpTable) {
+		methodLinear.addInstrToTail(".quad", tag);
+	}
+
+	cerr << "";
+	//each expression (with label)
+	for (Node *cs : cases) {
+		string caseId = ((Node *)cs->getChildren()[0])->value;
+		auto tExpr = cs->getChildren()[2];
+		Node *expr = (Node *)tExpr;
+		methodLinear.addInstrToTail("case" + to_string(caseLabelSave) + "_" + caseType(cs) + ":", "", "", InstructionList::INSTR_LABEL);
+		//add offset info
+		vars->addVar(caseId);
+		//put rax into case variable name offset on stack
+		methodLinear.addInstrToTail("mov", "rax", "[rbp-" + to_string(-vars->getOffset(caseId)) + "]");
+
+		makeExprIR_recursive(methodLinear, expr);
+		//remove scoping
+		vars->removeVar(caseId);
+		methodLinear.addInstrToTail("jmp", "case" + to_string(caseLabelSave) + "_end");
+	}
+
+	//case#_end
+	methodLinear.addNewNode();
+	methodLinear.addComment("case" + to_string(caseLabelSave) + " END");
+	methodLinear.addPreLabel("case" + to_string(caseLabelSave) + "_end:");
+}
+
+/*
+* 
+*/
+InstructionList &makeCaseErrorIR() 
+{
+	InstructionList*caseErr = new InstructionList;
+	//errorHandlerDoExit(*caseErr, "case_error", "Case without matching branch");
+	return *caseErr;
 }
 
 /*

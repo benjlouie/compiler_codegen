@@ -18,6 +18,7 @@ extern unordered_map<string, string> globalTypeList;
 extern unordered_map<size_t, string> globalStringTable;
 extern int whileLabelCount;
 extern int ifLabelCount;
+extern int caseLabelCount;
 extern vTable *globalVTable;
 
 
