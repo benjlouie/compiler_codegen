@@ -961,7 +961,7 @@ InstructionList &makeConcatIR()
 	methodLinear->addInstrToTail("push", "rax");
 	methodLinear->addInstrToTail("mov", "rax", "rdi");
 	getMethodParamIntoRegister(*methodLinear, 0, "r10");
-	methodLinear->addInstrToTail("mov", "r10+" + to_string(DEFAULT_VAR_OFFSET), "rsi");
+	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET)+"]", "rsi");
 
 	methodLinear->addInstrToTail("call", "strcpy");
 
@@ -970,7 +970,7 @@ InstructionList &makeConcatIR()
 	methodLinear->addInstrToTail("pop", "rdi #I swear we want these two functions. Trust me.");
 	methodLinear->addInstrToTail("push", "rdi");
 	getMethodParamIntoRegister(*methodLinear, 1, "r11");
-	methodLinear->addInstrToTail("mov", "r11 + 24", "rsi");
+	methodLinear->addInstrToTail("mov", "[r11 + 24]", "rsi");
 
 	methodLinear->addInstrToTail("call", "strcat");
 
