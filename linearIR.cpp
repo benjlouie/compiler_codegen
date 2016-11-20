@@ -638,11 +638,11 @@ InstructionList &makeLThandler() {
 	methodLinear->addInstrToTail("mov", "1", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					*
 	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");												//		jump to LT.HANDLER.END					*
 	//if false move 0 into bool																			//												*
-	methodLinear->addInstrToTail("LT.HANDLER.FALSE", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								*
+	methodLinear->addInstrToTail("LT.HANDLER.FALSE:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								*
 	methodLinear->addInstrToTail("mov", "0", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					*
 																										//												*
 	//return the bool and return from function															//												*
-	methodLinear->addInstrToTail("LT.HANDLER.END","","",InstructionList::INSTR_LABEL);					//LT.HANDLER.END								*
+	methodLinear->addInstrToTail("LT.HANDLER.END:","","",InstructionList::INSTR_LABEL);					//LT.HANDLER.END								*
 	methodLinear->addInstrToTail("mov", "rbp", "rsp");													//		boiler plate end stuff					*
 	methodLinear->addInstrToTail("ret");																//		return @ r15							*
 																										//***********************************************
