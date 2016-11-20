@@ -375,7 +375,7 @@ void objectInit(InstructionList &classLinear, string name, int tag, size_t size)
 	//allocate memory
 	classLinear.addNewNode();
 	classLinear.addComment("Allocate memory, and place into rbp + 8");
-	callCalloc(*methodLinear, to_string(size), "8");
+	callCalloc(classLinear, to_string(size), "8");
 	classLinear.addInstrToTail("mov", "rax", "[rbp + 8]");
 
 	//move pointer to our object to r12
@@ -445,7 +445,7 @@ InstructionList &makeIOIR()
 	objectInit(*ioLinear, className, tag, size);
 
 	//place return value in r15
-	intLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
+	ioLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
 
 	atCalleeExit(*ioLinear);
 	return *ioLinear;
@@ -464,12 +464,11 @@ InstructionList &makeObjectIR()
 	int tag = globalSymTable->getClassTag(className);
 	//Assuming that object has no data associated with it
 	int size = 3;
-
-	objLinear->addInstrToTail("mov", "rsp", "rbp");
+	atCalleeEntry(*objLinear);
 	objectInit(*objLinear, className, tag, size);
 	
 	//place return value in r15
-	intLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
+	objLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
 
 	atCalleeExit(*objLinear);
 	return *objLinear;
@@ -518,10 +517,12 @@ InstructionList &makeBoolIR()
 	int tag = globalSymTable->getClassTag(className);
 	int size = 4;
 
-	objectInit(*strLinear, className, tag, size);
+	atCalleeEntry(*booLinear);
+
+	objectInit(*booLinear, className, tag, size);
 
 	//place return value in r15
-	intLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
+	booLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
 
 	atCalleeExit(*booLinear);
 	return *booLinear;
