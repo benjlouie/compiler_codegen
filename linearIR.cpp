@@ -223,6 +223,8 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("String.length", makeLengthIR());
 	retMap->emplace("String.concat", makeConcatIR());
 	retMap->emplace("String.substr", makeSubstrIR());
+	retMap->emplace("LT..Handler", makeLThandler());
+	retMap->emplace("LTE..Handler", makeLTEhandler());
 
 	retMap->emplace(".data", makeStringsIR());
 
@@ -699,7 +701,7 @@ InstructionList &makeCopyIR()
 	methodLinear->addInstrToTail("mov", "[rbp+16]", "rsi");							//	move source address into rsi						      *
 																					//															  *
 	//call memcpy																	//															  *
-	methodLinear->addInstrToTail("call", "memcpy)");								//	call memcpy with args rdi,rsi,rdx						  *
+	methodLinear->addInstrToTail("call", "memcpy");								//	call memcpy with args rdi,rsi,rdx						  *
 																					//															  *
 	//return pointer to the copied object											//															  *
 	methodLinear->addInstrToTail("mov", "rax", "r15");								//	move the return of memcpy into r15						  *
@@ -737,16 +739,14 @@ InstructionList &makeOutStringIR()
 																//											*
 	//push string												//	--PREPARE FOR PRINTF--					*
 	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");		//	move pointer to string object into rax	*
-	methodLinear->addInstrToTail("push", "[rax+24]");			//	push pointer to string on to stack		*
+	methodLinear->addInstrToTail("mov", "[rax+24]", "rsi");		//	push pointer to string on to stack		*
 																//											*
 	//push format												//											*
-	methodLinear->addInstrToTail("push", stringName);			//	push the format string on to stack		*
+	methodLinear->addInstrToTail("lea", stringName,"rdi");		//	push the format string on to stack		*
 																//											*
 	//call printf												//											*
 	methodLinear->addInstrToTail("call", "printf");				//	call printf								*
 																//											*
-	//subtract 24 from rsp										//											*
-	methodLinear->addInstrToTail("sub", "24", "rsp");			//	subtract 24 from rsp					*
 																//											*
 	//restore rbp												//											*
 	methodLinear->addInstrToTail("pop", "rbp");					//	pop into rbp to restore base pointer	*
