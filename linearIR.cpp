@@ -83,6 +83,8 @@ InstructionList &makeInIntIR();
 InstructionList &makeLengthIR();
 InstructionList &makeConcatIR();
 InstructionList &makeSubstrIR();
+InstructionList &makeLThandler();
+InstructionList &makeLTEhandler();
 
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
@@ -545,14 +547,31 @@ InstructionList &makeStringsIR()
 }
 
 /*Built in function definitions start*/
+/* Robert */
 InstructionList &makeAbortIR()
 {
 	InstructionList *methodLinear = new InstructionList;
 
-	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("ret");
 
+	methodLinear->addNewNode();
+	methodLinear->addComment("ABORT FUNCTION");
+	//add string to data table
+	size_t stringNum = globalStringTable.size();
+	globalStringTable[stringNum] = "Abort was Called";				//******************************
+	string stringName = ".string" + std::to_string(stringNum);		//		   INFO PAGE		   *
+																	//******************************
+	//load the string into rdi										//	--PREPARE FOR PUTS--	   *
+	methodLinear->addInstrToTail("lea", stringName, "rdi");			//	move abort string into rdi *
+																	//							   *
+	//call puts														//							   *
+	methodLinear->addInstrToTail("call", "puts");					//	call puts				   *
+																	//							   *
+	//move 1 into rdi for return value								//	--PREPARE FOR EXIT--	   *
+	methodLinear->addInstrToTail("mov", "1", "rdi");				//	move status 0x1 into rdi   *
+																	//							   *
+	//call exit with code 0x1										//							   *
+	methodLinear->addInstrToTail("call", "exit");					//	call exit				   *
+																	//******************************
 	return *methodLinear;
 }
 
@@ -567,36 +586,172 @@ InstructionList &makeTypeNameIR()
 	return *methodLinear;
 }
 
-InstructionList &makeCopyIR()
-{
-	InstructionList *methodLinear = new InstructionList;
+/* Robert */
+InstructionList &makeLThandler() {
 
+	InstructionList *methodLinear = new InstructionList;
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("ret");
+	methodLinear->addComment("LT Handler: Checking if two values are LT ");								//***********************************************
+																										//*					INFO PAGE					*
+	//entrance stuff																					//***********************************************
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");													//		boiler plate entry stuff				*
+																										//												*
+	//make a new bool																					//												*
+	makeNew(*methodLinear, "Bool");																		//		make new boolean object					*
+																										//												*
+	//mov values to compare into rax and rbx															//												*
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");												//		move first int pointer into rax			*
+	methodLinear->addInstrToTail("mov", "[rax+24]", "rax");												//		move second int value into rax			*
+	methodLinear->addInstrToTail("mov", "[rbp+24]", "rbx");												//		move second int pointer into rbx		*
+	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");												//		move second int value into rbx			*
+																										//												*
+	//compare the values																				//												*
+	methodLinear->addInstrToTail("cmp", "rax", "rbx");													//		comapre rbx and rax						*
+	methodLinear->addInstrToTail("jge", "LT.HANDLER.FALSE");											//		if false jump to LT.HANDLER.FALSE		*
+																										//												*
+	//if true move 1 into bool																			//												*
+	methodLinear->addInstrToTail("mov", "1", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					*
+	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");												//		jump to LT.HANDLER.END					*
+	//if false move 0 into bool																			//												*
+	methodLinear->addInstrToTail("LT.HANDLER.FALSE", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								*
+	methodLinear->addInstrToTail("mov", "0", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					*
+																										//												*
+	//return the bool and return from function															//												*
+	methodLinear->addInstrToTail("LT.HANDLER.END","","",InstructionList::INSTR_LABEL);					//LT.HANDLER.END								*
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");													//		boiler plate end stuff					*
+	methodLinear->addInstrToTail("ret");																//		return @ r15							*
+																										//***********************************************
 
 	return *methodLinear;
 }
 
+/* Robert */
+InstructionList &makeLTEhandler() {
 
-/*
-* Keyboard: Forest
-* Others:
-* 
+	InstructionList *methodLinear = new InstructionList;
+	methodLinear->addNewNode();
+	methodLinear->addComment("LT Handler: Checking if two values are LTE");								//************************************************
+																										//*					INFO PAGE                    *
+	//entrance stuff																					//************************************************
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");													//		boiler plate entry stuff				 *
+																										//												 *
+	//	make a new bool																					//												 *
+	makeNew(*methodLinear, "Bool");																		//		make new boolean object					 *
+																										//												 *
+	//	mov values to compare into rax and rbx															//												 *
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");												//		move first int pointer into rax			 *
+	methodLinear->addInstrToTail("mov", "[rax+24]", "rax");												//		move second int value into rax			 *
+	methodLinear->addInstrToTail("mov", "[rbp+24]", "rbx");												//		move second int pointer into rbx		 *
+	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");												//		move second int value into rbx			 *
+																										//												 *
+	//	compare the values																				//												 *
+	methodLinear->addInstrToTail("cmp", "rax", "rbx");													//		comapre rbx and rax						 *
+	methodLinear->addInstrToTail("jg", "LT.HANDLER.FALSE");												//		if false jump to LT.HANDLER.FALSE		 *
+																										//												 *
+	//if true move 1 into bool																			//												 *
+	methodLinear->addInstrToTail("mov", "1", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					 *
+	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");												//		jump to LT.HANDLER.END					 *
+	//if false move 0 into bool																			//												 *
+	methodLinear->addInstrToTail("LT.HANDLER.FALSE", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								 *
+	methodLinear->addInstrToTail("mov", "0", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					 *
+																										//												 *
+	//return the bool and return from function															//												 *
+	methodLinear->addInstrToTail("LT.HANDLER.END", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.END								 *
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");													//		boiler plate end stuff					 *
+	methodLinear->addInstrToTail("ret");																//		return @ r15							 *
+																										//************************************************
+
+	return *methodLinear;
+}
+
+/* Robert */
+InstructionList &makeCopyIR()
+{
+	//register order
+	//RDI, RSI, RDX, RCX
+	//memcpy(void *dest, const void *src, size_t n);
+
+
+	InstructionList *methodLinear = new InstructionList;
+																					
+	methodLinear->addNewNode();														//*************************************************************
+	methodLinear->addComment("Copy ");												//							INFO PAGE						  *
+	//boiler plate entry stuff														//*************************************************************
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");								//	boiler plate entry stuff								  *
+																					//															  *
+	//lookup size of the object being copied and move size into RCX					//	*This will be calling memcpy and calloc					  *
+	//during the call to callc rdx would be destroyed so I use r13 to hold for now	//															  *
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");							//	move int object from stack into rax						  *
+	methodLinear->addInstrToTail("mov", "[rax+24]", "r13");							//	move int value into r13									  *
+	methodLinear->addInstrToTail("imul", "8", "r13");								//	multiply r13 by 8 to get size in # of bytes				  *
+																					//															  *
+	//malloc setup for malloc call of size RCX										//	--PREPARE TO CALL CALLOC--								  *
+	methodLinear->addInstrToTail("mov", "1", "rdi");								//	move 1 into rdi to have 1 element						  *
+	methodLinear->addInstrToTail("mov", "rcx", "rsi");								//	move r13*8 to have element size 						  *
+	methodLinear->addInstrToTail("call", "calloc");									//	call calloc with 1 element of size r13*8 				  *
+																					//	 --PREPARE FOR MEMCPY--									  *
+	methodLinear->addInstrToTail("mov", "rax", "rdi");								//	move pointer returned by calloc into rdi				  *
+																					//															  *
+	//move r13 from holding into rdx for function call								//															  *
+	methodLinear->addInstrToTail("mov", "r13", "rdx");								//	move r13 into rdx. This was done to save r13 during call  *
+																					//															  *
+	//call memcpy																	//															  *
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rsi");							//	call memcpy with args rdi,rsi,rdx						  *
+																					//															  *
+	//return pointer to the copied object											//															  *
+	methodLinear->addInstrToTail("mov", "r15");										//	move the return of memcpy into r15						  *
+																					//															  *
+	//boiler plate exit stuff														//															  *
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");								//	boiler plate exit stuff									  *
+	methodLinear->addInstrToTail("ret");											//	return @ r15											  *
+																					//*************************************************************
+	return *methodLinear;
+}
+
+
+/*Originally written by: Forrest
+ *Rewritten by: Robert
+ * Out_String was written by forrest initially so we could do testing.
+ * It was rewritten by robert later
 */
 InstructionList &makeOutStringIR()
 {
 	InstructionList *methodLinear = new InstructionList;
 
-	methodLinear->addNewNode();
-	methodLinear->addInstrToTail("mov", "rsp", "rbp");
-	methodLinear->addComment("it's basically puts");//TODO make it not puts (remove newline)
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");
-	methodLinear->addInstrToTail("mov", "[rax+24]", "rdi");
-	methodLinear->addInstrToTail("call", "puts");
-	methodLinear->addInstrToTail("mov", "rbp", "rsp");
-	methodLinear->addInstrToTail("ret");
+	//add string to data table
+	size_t stringNum = globalStringTable.size();
+	globalStringTable[stringNum] = " db \"%s\", 10, 0";
+	string stringName = ".string" + std::to_string(stringNum);
 
+
+	methodLinear->addNewNode();									//*******************************************
+	methodLinear->addComment("OUT STRING");						//			     INFO PAGE					*
+	//boiler plate entry stuff									//*******************************************
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");			//	boiler plate entry						*
+																//											*
+	//push the base pointer										//											*
+	methodLinear->addInstrToTail("push", "rbp");				//	push the base pointer					*
+																//											*
+	//push string												//	--PREPARE FOR PRINTF--					*
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");		//	move pointer to string object into rax	*
+	methodLinear->addInstrToTail("push", "[rax+24]");			//	push pointer to string on to stack		*
+																//											*
+	//push format												//											*
+	methodLinear->addInstrToTail("push", stringName);			//	push the format string on to stack		*
+																//											*
+	//call printf												//											*
+	methodLinear->addInstrToTail("call", "printf");				//	call printf								*
+																//											*
+	//subtract 24 from rsp										//											*
+	methodLinear->addInstrToTail("sub", "24", "rsp");			//	subtract 24 from rsp					*
+																//											*
+	//restore rbp												//											*
+	methodLinear->addInstrToTail("pop", "rbp");					//	pop into rbp to restore base pointer	*
+																//											*
+	//boiler plate exit stuff									//											*
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");			//	boiler plate exit						*
+	methodLinear->addInstrToTail("ret");						//	return @ no return						*
+																//*******************************************
 	return *methodLinear;
 }
 
@@ -622,14 +777,65 @@ InstructionList &makeOutIntIR()
 	return *methodLinear;
 }
 
+/* Robert */
 InstructionList &makeInIntIR()
 {
+	//register order
+	//RDI, RSI, RDX, RCX
+	//calloc(size_t nitems, size_t size)
+	//fgets(char *str, int n, FILE *stream)
+	//sscanf(const char *str, const char *format, ...)
+
 	InstructionList *methodLinear = new InstructionList;
 
-	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("ret");
-
+	//add string to data table
+	size_t stringNum = globalStringTable.size();
+	globalStringTable[stringNum] = "%ld";
+	string stringName = ".string" + std::to_string(stringNum);
+																				//*******************************************************
+	methodLinear->addNewNode();													//*                     INFO PAGE                       *
+	//boiler plate entry stuff													//*******************************************************
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");							//	boiler plate entry stuff							*
+																				//														*
+	//make new int																//														*
+	makeNew(*methodLinear, "Int");												//	make new integer									*
+																				//														*
+	//calloc 16 bytes of memory for fgets										//	--PREPARE TO CALL CALLOC--							*
+	methodLinear->addInstrToTail("mov", "1", "rdi");							//	move 1 into rdi so we have 1 element				*
+	methodLinear->addInstrToTail("mov", "16", "rsi");							//	move 16 into rsi so we have 16 elements				*
+	methodLinear->addInstrToTail("call", "calloc");								//	call calloc											*
+																				//														*
+	//save memory pointer from calloc for later									//														*
+	methodLinear->addInstrToTail("push", "rax");								//	save pointer to callod'c memory for later			*
+																				//														*
+	//call fgets with stdin														//	--PREPARE TO CALL FGETS--							*
+	methodLinear->addInstrToTail("mov", "rax", "rdi");							//	move pointer to calloc'd memory into rdi			*
+	methodLinear->addInstrToTail("mov", "16", "rsi");							//	move 16 into rsi to read 16 characters				*
+	methodLinear->addInstrToTail("mov", "stdin[rip]", "rdx");					//	move value for stdin into rdx						*
+	methodLinear->addInstrToTail("call", "fgets");								//	call fgets											*
+																				//														*
+	//call sscanf on return of fgets											//	--PREPARE TO CALL SSCANF--							*
+	methodLinear->addInstrToTail("pop", "rdi");									//	pop our saved pointer to calloc'd memory into rdi	*
+	methodLinear->addInstrToTail("mov", "0", "rax");							//	move 0 into rax										*
+	methodLinear->addInstrToTail("push", "rax");								//	push rax											*
+	methodLinear->addInstrToTail("mov", "rsp", "rdx");							//	move rsp into rdx this makes a temp value for sscanf*
+	methodLinear->addInstrToTail("mov", stringName, "rsi");						//	move our format string into rsi						*
+	methodLinear->addInstrToTail("call", "sscanf");								//	call sscanf											*
+																				//														*
+	//check to make sure the return of sscanf is between INT_MAX and INT_MIN	//														*
+	methodLinear->addInstrToTail("pop", "rax");									//	pop our temp value into rax							*
+	methodLinear->addInstrToTail("cmp", "2147483647", "rax");					//	check to see if value > INT_MAX						*
+	methodLinear->addInstrToTail("cmov", "0", "rax");							//	if greater than set to 0							*
+	methodLinear->addInstrToTail("cmp", "-2147483648", "rax");					//	check to see if value < INT_MIN						*
+	methodLinear->addInstrToTail("cmov", "0", "rax");							//	if less than set to 0								*
+																				//														*
+	//move value into the int we made in the beginning							//														*
+	methodLinear->addInstrToTail("mov", "rax", "[r15+24]");						//	move the final value into the int we created		*
+																				//														*
+	//boiler plate exit stuff													//														*
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");							// boiler plate exit stuff								*
+	methodLinear->addInstrToTail("ret");										//	return @ r15										*								
+																				//*******************************************************
 	return *methodLinear;
 }
 
