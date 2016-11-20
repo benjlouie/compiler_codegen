@@ -888,7 +888,7 @@ InstructionList &makeLengthIR()
 	//put string pointer into rdi
 	getMethodParamIntoRegister(*methodLinear, 0, "r10");
 	/*CHECK ME TO MAKE SURE I'M GETTING STRING RIGHT.*/
-	methodLinear->addInstrToTail("mov", "r10+24", "rdi");
+	methodLinear->addInstrToTail("mov", "[r10+24]", "rdi");
 
 	//clear flag
 	methodLinear->addInstrToTail("cld");
