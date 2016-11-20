@@ -89,6 +89,7 @@ void atCalleeExit(InstructionList &methodLinear);
 void atCalleeEntry(InstructionList &methodLinear);
 void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut);
 void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement);
+void errorHandlerDoExit(InstructionList &methodLinear, string label, string error);
 
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
@@ -687,7 +688,7 @@ InstructionList &makeLengthIR()
 	methodLinear->addInstrToTail("pop", "r14");
 
 	//Put into place in new Int object, and leave the object in r15 to return.
-	methodLinear->addInstrToTail("mov", "r14", "[r15+24]");
+	methodLinear->addInstrToTail("mov", "r14", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 
 	atCalleeExit(*methodLinear);
 
@@ -715,13 +716,13 @@ InstructionList &makeConcatIR()
 	//Call strlen on it
 	setupMethodCall(*methodLinear, "String.length", { "r10" });
 	//get the length of the string onto the stack
-	methodLinear->addInstrToTail("mov", "[r15+24]", "r14");
+	methodLinear->addInstrToTail("mov", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r14");
 	methodLinear->addInstrToTail("push", "r14");
 
 	//Same as above for self, except now it's the first formal param
 	getMethodParamIntoRegister(*methodLinear, 1, "r11");
 	setupMethodCall(*methodLinear, "String.length", { "r11" });
-	methodLinear->addInstrToTail("mov", "[r15+24]", "r14");
+	methodLinear->addInstrToTail("mov", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r14");
 
 	methodLinear->addInstrToTail("pop", "r10");
 	methodLinear->addInstrToTail("add", "r14", "r10");
@@ -734,7 +735,7 @@ InstructionList &makeConcatIR()
 	methodLinear->addInstrToTail("push", "rax");
 	methodLinear->addInstrToTail("mov", "rax", "rdi");
 	getMethodParamIntoRegister(*methodLinear, 0, "r10");
-	methodLinear->addInstrToTail("mov", "r10+24", "rsi");
+	methodLinear->addInstrToTail("mov", "r10+" + to_string(DEFAULT_VAR_OFFSET), "rsi");
 
 	methodLinear->addInstrToTail("call", "strcpy");
 
@@ -753,7 +754,7 @@ InstructionList &makeConcatIR()
 
 	//put new string into return object
 	methodLinear->addInstrToTail("pop", "r10");
-	methodLinear->addInstrToTail("mov", "r10", "[r15 + 24]");	
+	methodLinear->addInstrToTail("mov", "r10", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");	
 
 	//return that new object
 	atCalleeExit(*methodLinear);
@@ -763,18 +764,79 @@ InstructionList &makeConcatIR()
 
 InstructionList &makeSubstrIR()
 {
+	string startGreaterThanEndLabel = "SUBSTR.HANDLER.SGTE";
+	string endGreaterThanStringEndLabel = "SUBSTR.HANDLER.EGTLENSTR";
 	InstructionList *methodLinear = new InstructionList;
 
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
-	methodLinear->addInstrToTail("ret");
+	methodLinear->addComment("Returns part of a string that is a certain length.");
+
+	atCalleeEntry(*methodLinear);
+	/*Check if param2 < param1 is negative. If it is, error and exit*/ 
+	getMethodParamIntoRegister(*methodLinear, 1, "r10");
+	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r12")
+	getMethodParamIntoRegister(*methodLinear, 2, "r11")
+	methodLinear->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r13")
+	methodLinear->addInstrToTail("cmp", "r12", "r13");
+	methodLinear->addInstrToTail("jg", startGreaterThanEndLabel);
+
+	/*get length of self*/
+	getMethodParamIntoRegister(*methodLinear, 0, "r14");
+	//Save param1 and then param2, since destroyed on function call
+	methodLinear->addInstrToTail("push", "r12");
+	methodLinear->addInstrToTail("push", "r13");
+	//Get length
+	setupMethodCall(*methodLinear, "String.length", { "r14" });
+	methodLinear->addInstrToTail("mov", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r15");
+
+	/*Check if end > len(self). If it is, error and exit*/
+	//compare param2 to length
+	methodLinear->addInstrToTail("pop", "r8");
+	methodLinear->addInstrToTail("cmp", "r8", "r15");
+	methodLinear->addInstrToTail("jg", endGreaterThanStringEndLabel);
+
+	//CHECK IF NEED TO SAVE LENGTH OF ORIGINAL STRING - I DON'T THINK SO, BUT IF you do uncomment the next line.'
+	//methodLinear->addInstrToTail("push", "r15");
+
+	/*Get address of string and add param1's int value*/
+	getMethodParamIntoRegister(*methodLinear, 0, "r14");
+	methodLinear->addInstrToTail("mov", "[r14+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r14");
+	methodLinear->addInstrToTail("add", "r8", "r15");
+
+	/*make space the size of param2 - param1*/
+	methodLinear->addInstrToTail("pop", "r9");
+	methodLinear->addInstrToTail("sub", "r8", "r9");
+	methodLinear->addInstrToTail("push", "r9");
+	callCalloc(*methodLinear, "r9", "1");
+
+	/*memcpy size of param2 - param1 into new space*/
+	methodLinear->addInstrToTail("mov", "rax", "rdi");
+	methodLinear->addInstrToTail("pop", "rdx");
+	methodLinear->addInstrToTail("mov", "r15", "rsi");
+	methodLinear->addInstrToTail("call", "memcpy");
+
+	/*Make new string and put in created space*/
+	methodLinear->addInstrToTail("push", "rax");
+	setupMethodCall(*methodLinear, "String..new", { "rax" });
+	methodLinear->addInstrToTail("pop", "r10");
+	methodLinear->addInstrToTail("mov", "r10", "[r15+"+ to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	/*Return above newly created string*/
+	atCalleeExit(*methodLinear);
+
+	/*end < start error handler*/
+	errorHandlerDoExit(*methodLinear, startGreaterThanEndLabel,"Substring end was less than start.");
+
+	/*end > len(self) handler*/
+	errorHandlerDoExit(*methodLinear, endGreaterThanStringEndLabel,"End value was past the end of the string.");
+
 
 	return *methodLinear;
 }
 
 /*Built in function definitions end*/
 
-/*Helper functions */
+/*Helper functions start */
 
 /*
  * @author: Matt 
@@ -814,6 +876,34 @@ void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, stri
 }
 
 /*
+ * @author: Mostly Robert, with a touch of Matt 
+ */
+void errorHandlerDoExit(InstructionList &methodLinear, string label, string error)
+{
+	//add label
+	methodLinear.addInstrToTail(label, "","", InstructionList::INSTR_LABEL);
+
+	//add string to data table
+	size_t stringNum = globalStringTable.size();
+	globalStringTable[stringNum] = "ERROR: " + error;
+	string stringName = ".string" + to_string(stringNum);
+
+	//load string into rdi
+	methodLinear->addInstrToTail("lea", stringName, "rdi");
+
+	//call puts
+	methodLinear->addInstrToTail("call", "puts");
+
+	//move 1 into rdi for return val
+	methodLinear->addInstrToTail("mov", "1", "rdi");
+
+	//call exit with error code 1
+	methodLinear->addInstrToTail("call", "exit");
+}
+
+/*Helper functions end */
+
+/*
 * Author: Matt, Robert, Ben
 */
 InstructionList &makeMethodIR(Node *feat) 
@@ -827,7 +917,7 @@ InstructionList &makeMethodIR(Node *feat)
 
 	//method initialization
 	methodInit(*methodLinear, feat);
-	
+	setupMethodCall()
 	//go through method expressions
 	makeExprIR_recursive(*methodLinear, expression);
 
