@@ -6,6 +6,7 @@ void code()
 	globalSymTable->generateOffsets();
 	//get number of locals at each level scope level
 	globalSymTable->countLocals();
+	globalSymTable->generateTags();
 
     //Forest's stuff
     buildVTable();
