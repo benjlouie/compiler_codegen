@@ -790,9 +790,9 @@ InstructionList &makeSubstrIR()
 	atCalleeEntry(*methodLinear);
 	/*Check if param2 < param1 is negative. If it is, error and exit*/ 
 	getMethodParamIntoRegister(*methodLinear, 1, "r10");
-	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r12")
-	getMethodParamIntoRegister(*methodLinear, 2, "r11")
-	methodLinear->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r13")
+	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r12");
+	getMethodParamIntoRegister(*methodLinear, 2, "r11");
+	methodLinear->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r13");
 	methodLinear->addInstrToTail("cmp", "r12", "r13");
 	methodLinear->addInstrToTail("jg", startGreaterThanEndLabel);
 
@@ -905,16 +905,16 @@ void errorHandlerDoExit(InstructionList &methodLinear, string label, string erro
 	string stringName = ".string" + to_string(stringNum);
 
 	//load string into rdi
-	methodLinear->addInstrToTail("lea", stringName, "rdi");
+	methodLinear.addInstrToTail("lea", stringName, "rdi");
 
 	//call puts
-	methodLinear->addInstrToTail("call", "puts");
+	methodLinear.addInstrToTail("call", "puts");
 
 	//move 1 into rdi for return val
-	methodLinear->addInstrToTail("mov", "1", "rdi");
+	methodLinear.addInstrToTail("mov", "1", "rdi");
 
 	//call exit with error code 1
-	methodLinear->addInstrToTail("call", "exit");
+	methodLinear.addInstrToTail("call", "exit");
 }
 
 /*Helper functions end */
@@ -933,7 +933,7 @@ InstructionList &makeMethodIR(Node *feat)
 
 	//method initialization
 	methodInit(*methodLinear, feat);
-	setupMethodCall()
+
 	//go through method expressions
 	makeExprIR_recursive(*methodLinear, expression);
 
