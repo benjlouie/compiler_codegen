@@ -421,8 +421,12 @@ InstructionList &makeIOIR()
 	ioLinear->addInstrToTail("mov", "rsp", "rbp");
 	int tag = 0;
 	int size = 3;
+	
 	objectInit(*ioLinear, className, tag, size);
+
+	ioLinear->addInstrToTail("mov", "rbp", "rsp");
 	ioLinear->addInstrToTail("ret");
+	
 	return *ioLinear;
 }
 
@@ -437,9 +441,14 @@ InstructionList &makeObjectIR()
 	//comment added
 	objLinear->addComment("Class " + className + " Initialization");
 	int tag = 0;
-	int size = 3;
+	int size = 4;
 	objLinear->addInstrToTail("mov", "rsp", "rbp");
+	
 	objectInit(*objLinear, className, tag, size);
+	
+	//return
+	//objLinear->addInstrToTail("mov", "r12", "r15");
+	objLinear->addInstrToTail("mov", "rbp", "rsp");
 	objLinear->addInstrToTail("ret");
 	return *objLinear;
 }
@@ -481,10 +490,20 @@ InstructionList &makeBoolIR()
 	InstructionList *booLinear = new InstructionList;
 	string className = "Bool";
 	booLinear->addNewNode();
-	//comment added
-	booLinear->addComment("Class " + className + " Initialization");
+	
 	int tag = 0;
 	int size = 4;
+	objectInit(*booLinear, className, tag, size);
+
+	//Don't need to mov 0, for same reason as int
+	//the raw data is the same as ints
+
+	//comment added
+	booLinear->addComment("Class " + className + " Initialization");
+
+	//return
+	//booLinear->addInstrToTail("mov", "r12", "r15");
+	booLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
 	booLinear->addInstrToTail("mov", "rsp", "rbp");
 	booLinear->addInstrToTail("ret");
 	return *booLinear;
@@ -556,12 +575,29 @@ InstructionList &makeAbortIR()
 	return *methodLinear;
 }
 
+/**
+* author: Benji
+*/
 InstructionList &makeTypeNameIR()
 {
 	InstructionList *methodLinear = new InstructionList;
-
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
+
+	//methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");
+	
+	//make new string
+	methodLinear->addComment("Making new string");
+	makeNew(*methodLinear, "string");
+	
+	//Getting the vtable value for self object
+	methodLinear->addInstrToTail("mov", "[rax + 16]", "rdi");
+	//I think this is suppose to be a dereference
+	//or just getting the value
+	methodLinear->addInstrToTail("mov", "[rdi + 0]", "rdi");
+	
+	//return
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");
 	methodLinear->addInstrToTail("ret");
 
 	return *methodLinear;
@@ -600,23 +636,54 @@ InstructionList &makeOutStringIR()
 	return *methodLinear;
 }
 
+
+/**
+* author: Benji
+*/
 InstructionList &makeInStringIR()
 {
 	InstructionList *methodLinear = new InstructionList;
-
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
+
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");
+	
+	//Making the new string
+	makeNew(*methodLinear, "string");
+	
+	//call to fgets
+	methodLinear->addInstrToTail("call", "fgets");
+
+	//return methods
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");
 	methodLinear->addInstrToTail("ret");
 
 	return *methodLinear;
 }
 
+/**
+* author: Benji
+*/
 InstructionList &makeOutIntIR()
 {
 	InstructionList *methodLinear = new InstructionList;
-
 	methodLinear->addNewNode();
-	methodLinear->addComment("Function needs to be implemented");
+	methodLinear->addComment("out_int function");
+
+	methodLinear->addInstrToTail("mov","rsp", "rbp");
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");
+	methodLinear->addInstrToTail("mov", "[rax+24]", "rdi");
+
+	//convert to decimal
+	methodLinear->addInstrToTail("cdqe");
+	methodLinear->addInstrToTail("mov", "rsi", "rax");
+
+	//calls the printf function
+	methodLinear->addInstrToTail("call", "printf");
+	methodLinear->addInstrToTail("pop", "rbp");
+	
+	//return
+	methodLinear->addInstrToTail("mov","rbp", "rsp");
 	methodLinear->addInstrToTail("ret");
 
 	return *methodLinear;
