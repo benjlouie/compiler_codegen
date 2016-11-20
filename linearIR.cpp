@@ -616,36 +616,36 @@ InstructionList &makeLThandler() {
 
 	InstructionList *methodLinear = new InstructionList;
 	methodLinear->addNewNode();
-	methodLinear->addComment("LT Handler: Checking if two values are LT ");								//***********************************************
-																										//*					INFO PAGE					*
-	//entrance stuff																					//***********************************************
-	methodLinear->addInstrToTail("mov", "rsp", "rbp");													//		boiler plate entry stuff				*
-																										//												*
-	//make a new bool																					//												*
-	makeNew(*methodLinear, "Bool");																		//		make new boolean object					*
-																										//												*
-	//mov values to compare into rax and rbx															//												*
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");												//		move first int pointer into rax			*
-	methodLinear->addInstrToTail("mov", "[rax+24]", "rax");												//		move second int value into rax			*
-	methodLinear->addInstrToTail("mov", "[rbp+24]", "rbx");												//		move second int pointer into rbx		*
-	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");												//		move second int value into rbx			*
-																										//												*
-	//compare the values																				//												*
-	methodLinear->addInstrToTail("cmp", "rbx", "rax");													//		comapre rbx and rax						*
-	methodLinear->addInstrToTail("jge", "LT.HANDLER.FALSE");											//		if false jump to LT.HANDLER.FALSE		*
-																										//												*
-	//if true move 1 into bool																			//												*
-	methodLinear->addInstrToTail("mov", "1", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					*
-	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");												//		jump to LT.HANDLER.END					*
-	//if false move 0 into bool																			//												*
+	methodLinear->addComment("LT Handler: Checking if two values are LT ");									//***********************************************
+																											//*					INFO PAGE					*
+	//entrance stuff																						//***********************************************
+	methodLinear->addInstrToTail("mov", "rsp", "rbp");														//		boiler plate entry stuff				*
+																											//												*
+	//make a new bool																						//												*
+	makeNew(*methodLinear, "Bool");																			//		make new boolean object					*
+																											//												*
+	//mov values to compare into rax and rbx																//												*
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");													//		move first int pointer into rax			*
+	methodLinear->addInstrToTail("mov", "[rax+24]", "rax");													//		move second int value into rax			*
+	methodLinear->addInstrToTail("mov", "[rbp+24]", "rbx");													//		move second int pointer into rbx		*
+	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");													//		move second int value into rbx			*
+																											//												*
+	//compare the values																					//												*
+	methodLinear->addInstrToTail("cmp", "rbx", "rax");														//		comapre rbx and rax						*
+	methodLinear->addInstrToTail("jge", "LT.HANDLER.FALSE");												//		if false jump to LT.HANDLER.FALSE		*
+																											//												*
+	//if true move 1 into bool																				//												*
+	methodLinear->addInstrToTail("mov", "1", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");	//		move 1 into bool value					*
+	methodLinear->addInstrToTail("jmp", "LT.HANDLER.END");													//		jump to LT.HANDLER.END					*
+	//if false move 0 into bool																				//												*
 	methodLinear->addInstrToTail("LT.HANDLER.FALSE:", "", "", InstructionList::INSTR_LABEL);				//LT.HANDLER.FALSE								*
-	methodLinear->addInstrToTail("mov", "0", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 0 into bool value					*
-																										//												*
-	//return the bool and return from function															//												*
-	methodLinear->addInstrToTail("LT.HANDLER.END:","","",InstructionList::INSTR_LABEL);					//LT.HANDLER.END								*
-	methodLinear->addInstrToTail("mov", "rbp", "rsp");													//		boiler plate end stuff					*
-	methodLinear->addInstrToTail("ret");																//		return @ r15							*
-																										//***********************************************
+	methodLinear->addInstrToTail("mov", "0", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");	//		move 0 into bool value					*
+																											//												*
+	//return the bool and return from function																//												*
+	methodLinear->addInstrToTail("LT.HANDLER.END:","","",InstructionList::INSTR_LABEL);						//LT.HANDLER.END								*
+	methodLinear->addInstrToTail("mov", "rbp", "rsp");														//		boiler plate end stuff					*
+	methodLinear->addInstrToTail("ret");																	//		return @ r15							*
+																											//***********************************************
 
 	return *methodLinear;
 }
@@ -1504,7 +1504,7 @@ void doBool(InstructionList &methodLinear, Node *expression, bool val)
 	makeNew(methodLinear, expression->valType);
 
 	//mov the correct value into rax's allocated space
-	methodLinear.addInstrToTail("mov", std::to_string(val), "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	methodLinear.addInstrToTail("mov", std::to_string(val), "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 
 	//Move the ref to the new space onto the stack
 	methodLinear.addInstrToTail("push", "r15");
