@@ -671,7 +671,7 @@ InstructionList &makeLTEhandler() {
 																										//												 *
 	//	compare the values																				//												 *
 	methodLinear->addInstrToTail("cmp", "rbx" , "rax");													//		comapre rbx and rax						 *
-	methodLinear->addInstrToTail("jg", "LTE.HANDLER.FALSE");												//		if false jump to LT.HANDLER.FALSE		 *
+	methodLinear->addInstrToTail("jg", "LTE.HANDLER.FALSE");											//		if false jump to LT.HANDLER.FALSE		 *
 																										//												 *
 	//if true move 1 into bool																			//												 *
 	methodLinear->addInstrToTail("mov", "1", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");		//		move 1 into bool value					 *
