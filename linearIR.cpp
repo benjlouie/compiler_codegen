@@ -625,14 +625,14 @@ InstructionList &makeLThandler() {
 	makeNew(*methodLinear, "Bool");																			//		make new boolean object					*
 																											//												*
 	//mov values to compare into rax and rbx																//												*
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");													//		move first int pointer into rax			*
+	methodLinear->addInstrToTail("mov", "[rbp+8]", "rax");													//		move first int pointer into rax			*
 	methodLinear->addInstrToTail("mov", "[rax+24]", "rax");													//		move second int value into rax			*
-	methodLinear->addInstrToTail("mov", "[rbp+24]", "rbx");													//		move second int pointer into rbx		*
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rbx");													//		move second int pointer into rbx		*
 	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");													//		move second int value into rbx			*
 																											//												*
 	//compare the values																					//												*
 	methodLinear->addInstrToTail("cmp", "rbx", "rax");														//		comapre rbx and rax						*
-	methodLinear->addInstrToTail("jl", "LT.HANDLER.TRUE");												//		if false jump to LT.HANDLER.FALSE		*
+	methodLinear->addInstrToTail("jl", "LT.HANDLER.TRUE");													//		if false jump to LT.HANDLER.FALSE		*
 																											//												*
 	//if false move 0 into bool																				//												*
 	methodLinear->addInstrToTail("mov", "0", "DWORD PTR[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");	//		move 1 into bool value					*
@@ -664,9 +664,9 @@ InstructionList &makeLTEhandler() {
 	makeNew(*methodLinear, "Bool");																		//		make new boolean object					 *
 																										//												 *
 	//	mov values to compare into rax and rbx															//												 *
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");												//		move first int pointer into rax			 *
+	methodLinear->addInstrToTail("mov", "[rbp+8]", "rax");												//		move first int pointer into rax			 *
 	methodLinear->addInstrToTail("mov", "[rax+24]", "rax");												//		move second int value into rax			 *
-	methodLinear->addInstrToTail("mov", "[rbp+24]", "rbx");												//		move second int pointer into rbx		 *
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rbx");												//		move second int pointer into rbx		 *
 	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");												//		move second int value into rbx			 *
 																										//												 *
 	//	compare the values																				//												 *
