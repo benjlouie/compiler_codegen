@@ -96,6 +96,7 @@ InstructionList &makeInIntIR();
 InstructionList &makeLengthIR();
 InstructionList &makeConcatIR();
 InstructionList &makeSubstrIR();
+InstructionList &makeCaseErrorIR();
 
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
@@ -237,6 +238,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("String.substr", makeSubstrIR());
 
 	retMap->emplace(".data", makeStringsIR());
+	retMap->emplace("#case error handling", makeCaseErrorIR());
 
 	return retMap;
 }
@@ -1522,9 +1524,9 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 */
 void doCaseStatement(InstructionList &methodLinear, Node *expression)
 {
-	caseLabelCount++;
+	int caseLabelSave = caseLabelCount++;
 	methodLinear.addNewNode();
-	methodLinear.addComment("start case" + to_string(caseLabelCount));
+	methodLinear.addComment("start case" + to_string(caseLabelSave));
 
 	auto children = expression->getChildren();
 	Node *caseExpr = (Node *)children[0];
@@ -1542,13 +1544,10 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 		varNames.push_back(((Node *)chld->getChildren()[0])->value);
 	}
 	
-	//add offset info
-	vars->addCaseVars(varNames);
-	methodLinear.addInstrToTail("mov", "rax", "[rbp-" + to_string(-vars->getOffset(varNames[0])) + "]");
-	methodLinear.addInstrToTail("lea", "case" + to_string(caseLabelCount) + "_table", "r12");
+	methodLinear.addInstrToTail("lea", "case" + to_string(caseLabelSave) + "_table", "r12");
 	methodLinear.addInstrToTail("jmp", "[r12+rbx*8+0]");
 	//case#_table (for jmp table)
-	methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_table:", "", "", InstructionList::INSTR_LABEL);
+	methodLinear.addInstrToTail("case" + to_string(caseLabelSave) + "_table:", "", "", InstructionList::INSTR_LABEL);
 
 	auto  cmpr = [](Node *a, Node *b) -> bool {
 		Node *atype = (Node *)a->getChildren()[1];
@@ -1582,7 +1581,7 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 		for (Node *cs : cases) {
 			string cType = caseType(cs);
 			if (globalSymTable->isSubClass(type, cType)) {
-				tag = "case" + to_string(caseLabelCount) + "_" + cType;
+				tag = "case" + to_string(caseLabelSave) + "_" + cType;
 				break;
 			}
 		}
@@ -1598,25 +1597,38 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 		methodLinear.addInstrToTail(".quad", tag);
 	}
 
+	cerr << "";
 	//each expression (with label)
 	for (Node *cs : cases) {
+		string caseId = ((Node *)cs->getChildren()[0])->value;
 		auto tExpr = cs->getChildren()[2];
 		Node *expr = (Node *)tExpr;
-		methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_" + caseType(cs) + ":", "", "", InstructionList::INSTR_LABEL);
+		methodLinear.addInstrToTail("case" + to_string(caseLabelSave) + "_" + caseType(cs) + ":", "", "", InstructionList::INSTR_LABEL);
+		//add offset info
+		vars->addVar(caseId);
 		//put rax into case variable name offset on stack
-
+		methodLinear.addInstrToTail("mov", "rax", "[rbp-" + to_string(-vars->getOffset(caseId)) + "]");
 
 		makeExprIR_recursive(methodLinear, expr);
-		methodLinear.addInstrToTail("jmp", "case" + to_string(caseLabelCount) + "_end");
+		//remove scoping
+		vars->removeVar(caseId);
+		methodLinear.addInstrToTail("jmp", "case" + to_string(caseLabelSave) + "_end");
 	}
 
 	//case#_end
 	methodLinear.addNewNode();
-	methodLinear.addComment("case" + to_string(caseLabelCount) + " END");
-	methodLinear.addPreLabel("case" + to_string(caseLabelCount) + "_end:");
+	methodLinear.addComment("case" + to_string(caseLabelSave) + " END");
+	methodLinear.addPreLabel("case" + to_string(caseLabelSave) + "_end:");
+}
 
-	//cleanup scoping
-	vars->removeCaseVars(varNames);
+/*
+* 
+*/
+InstructionList &makeCaseErrorIR() 
+{
+	InstructionList*caseErr = new InstructionList;
+	//errorHandlerDoExit(*caseErr, "case_error", "Case without matching branch");
+	return *caseErr;
 }
 
 /*
