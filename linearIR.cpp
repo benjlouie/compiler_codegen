@@ -588,7 +588,7 @@ InstructionList &makeTypeNameIR()
 	
 	//make new string
 	methodLinear->addComment("Making new string");
-	makeNew(*methodLinear, "string");
+	makeNew(*methodLinear, "String");
 	
 	//Getting the vtable value for self object
 	methodLinear->addInstrToTail("mov", "[rax + 16]", "rdi");
@@ -649,7 +649,7 @@ InstructionList &makeInStringIR()
 	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");
 	
 	//Making the new string
-	makeNew(*methodLinear, "string");
+	makeNew(*methodLinear, "String");
 	
 	//call to fgets
 	methodLinear->addInstrToTail("call", "fgets");
