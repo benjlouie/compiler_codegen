@@ -249,7 +249,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("LTE..Handler", makeLTEhandler());
 
 	retMap->emplace(".data", makeStringsIR());
-	retMap->emplace("#case error handling", makeCaseErrorIR());
+	retMap->emplace("case_error", makeCaseErrorIR());
 
 	return retMap;
 }
@@ -302,7 +302,7 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 	classLinear->addNewNode();
 	classLinear->addComment("Class " + className + " Initialization");
 	//classLinear->addInstrToTail("push", "rbp");
-	classLinear->addInstrToTail("mov", "rsp", "rbp");
+	atCalleeEntry(*classLinear);
 
 	//TODO make space for locals
 
@@ -359,10 +359,7 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 	//place return value in r15
 	classLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
 
-	//function call return
-	classLinear->addInstrToTail("mov", "rbp", "rsp");
-	//classLinear->addInstrToTail("pop", "rbp");
-	classLinear->addInstrToTail("ret");
+	atCalleeExit(*classLinear);
 
 	return *classLinear;
 }
@@ -378,9 +375,7 @@ void objectInit(InstructionList &classLinear, string name, int tag, size_t size)
 	//allocate memory
 	classLinear.addNewNode();
 	classLinear.addComment("Allocate memory, and place into rbp + 8");
-	classLinear.addInstrToTail("mov", std::to_string(size), "rdi");
-	classLinear.addInstrToTail("mov", "8", "rsi");
-	classLinear.addInstrToTail("call", "calloc");
+	callCalloc(*methodLinear, to_string(size), "8");
 	classLinear.addInstrToTail("mov", "rax", "[rbp + 8]");
 
 	//move pointer to our object to r12
@@ -427,10 +422,7 @@ InstructionList &makeIntIR()
 	//place return value in r15
 	intLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
 
-	//function call return
-	intLinear->addInstrToTail("mov", "rbp", "rsp");
-	//intLinear->addInstrToTail("pop", "rbp");
-	intLinear->addInstrToTail("ret");
+	atCalleeExit(*intLinear);
 
 	return *intLinear;
 }
@@ -441,15 +433,21 @@ InstructionList &makeIntIR()
 InstructionList &makeIOIR()
 {
 	InstructionList *ioLinear = new InstructionList;
+
 	string className = "IO";
 	ioLinear->addNewNode();
-	//comment added
 	ioLinear->addComment("Class " + className + " Initialization");
-	ioLinear->addInstrToTail("mov", "rsp", "rbp");
+	atCalleeEntry(*ioLinear);
+
 	int tag = globalSymTable->getClassTag(className);
-	int size = 3;
+	int size = 3; //3 object 0 data
+
 	objectInit(*ioLinear, className, tag, size);
-	ioLinear->addInstrToTail("ret");
+
+	//place return value in r15
+	intLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
+
+	atCalleeExit(*ioLinear);
 	return *ioLinear;
 }
 
@@ -461,13 +459,19 @@ InstructionList &makeObjectIR()
 	InstructionList *objLinear = new InstructionList;
 	string className = "Object";
 	objLinear->addNewNode();
-	//comment added
 	objLinear->addComment("Class " + className + " Initialization");
+
 	int tag = globalSymTable->getClassTag(className);
+	//Assuming that object has no data associated with it
 	int size = 3;
+
 	objLinear->addInstrToTail("mov", "rsp", "rbp");
 	objectInit(*objLinear, className, tag, size);
-	objLinear->addInstrToTail("ret");
+	
+	//place return value in r15
+	intLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
+
+	atCalleeExit(*objLinear);
 	return *objLinear;
 }
 
@@ -480,9 +484,9 @@ InstructionList &makeStringIR()
 	InstructionList *strLinear = new InstructionList;
 	string className = "String";
 	strLinear->addNewNode();
-	//comment added
 	strLinear->addComment("Class " + className + " Initialization");
-	strLinear->addInstrToTail("mov", "rsp", "rbp");
+
+	atCalleeEntry(*strLinear);
 	int tag = globalSymTable->getClassTag(className);
 	int size = 4;
 
@@ -493,10 +497,11 @@ InstructionList &makeStringIR()
 	//load effective address of string into self[3]
 	strLinear->addInstrToTail("lea", ".string" + to_string(stringNum), "rax");
 	strLinear->addInstrToTail("mov", "rax", "[r12+" + to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	//place return value in r15
 	strLinear->addInstrToTail("mov", "r12", "r15");
 
-	strLinear->addInstrToTail("mov", "rbp", "rsp");
-	strLinear->addInstrToTail("ret");
+	atCalleeExit(*strLinear);
 	return *strLinear;
 }
 
@@ -508,12 +513,17 @@ InstructionList &makeBoolIR()
 	InstructionList *booLinear = new InstructionList;
 	string className = "Bool";
 	booLinear->addNewNode();
-	//comment added
 	booLinear->addComment("Class " + className + " Initialization");
+
 	int tag = globalSymTable->getClassTag(className);
 	int size = 4;
-	booLinear->addInstrToTail("mov", "rsp", "rbp");
-	booLinear->addInstrToTail("ret");
+
+	objectInit(*strLinear, className, tag, size);
+
+	//place return value in r15
+	intLinear->addInstrToTail("mov", "[rbp + 8]", "r15");
+
+	atCalleeExit(*booLinear);
 	return *booLinear;
 }
 
@@ -750,7 +760,6 @@ InstructionList &makeOutStringIR()
 	size_t stringNum = globalStringTable.size();
 	globalStringTable[stringNum] = "%s";
 	string stringName = ".string" + std::to_string(stringNum);
-
 
 	methodLinear->addNewNode();									//*******************************************
 	methodLinear->addComment("OUT STRING");						//			     INFO PAGE					*
@@ -1061,7 +1070,7 @@ InstructionList &makeSubstrIR()
 }
 
 /*Built in function definitions end*/
-
+//===========================================================================
 /*Helper functions start */
 
 /*
@@ -1128,6 +1137,8 @@ void errorHandlerDoExit(InstructionList &methodLinear, string label, string erro
 }
 
 /*Helper functions end */
+
+//===========================================================================
 
 /*
 * Author: Matt, Robert, Ben
@@ -2072,8 +2083,9 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 */
 InstructionList &makeCaseErrorIR() 
 {
-	InstructionList*caseErr = new InstructionList;
-	//errorHandlerDoExit(*caseErr, "case_error", "Case without matching branch");
+	InstructionList *caseErr = new InstructionList;
+	caseErr->addNewNode();
+	errorHandlerDoExit(*caseErr, "#case_error", "Case without matching branch");
 	return *caseErr;
 }
 
