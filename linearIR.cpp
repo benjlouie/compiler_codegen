@@ -1566,11 +1566,22 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 
 	//setup jump table
 	vector<string> jmpTable;
+	vector<string> allTypes;
 	for (auto type : globalTypeList) {
+		allTypes.push_back(type.first);
+	}
+	auto jmpTableCmp = [](string a, string b) -> bool {
+		string aClass = a.substr(a.find("_") + 1);
+		string bClass = b.substr(b.find("_") + 1);
+		return globalSymTable->getClassTag(aClass) < globalSymTable->getClassTag(bClass);
+	};
+	std::sort(allTypes.begin(), allTypes.end(), jmpTableCmp);
+
+	for (auto type : allTypes) {
 		string tag = "";
 		for (Node *cs : cases) {
 			string cType = caseType(cs);
-			if (globalSymTable->isSubClass(type.first, cType)) {
+			if (globalSymTable->isSubClass(type, cType)) {
 				tag = "case" + to_string(caseLabelCount) + "_" + cType;
 				break;
 			}
@@ -1581,12 +1592,6 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 
 		jmpTable.push_back(tag);
 	}
-	auto jmpTableCmp = [](string a, string b) -> bool {
-		string aClass = a.substr(a.find("_") + 1);
-		string bClass = b.substr(b.find("_") + 1);
-		return globalSymTable->getClassTag(aClass) < globalSymTable->getClassTag(bClass);
-	};
-	std::sort(jmpTable.begin(), jmpTable.end(), jmpTableCmp);
 
 	//put table directly into assembly
 	for (string tag : jmpTable) {
