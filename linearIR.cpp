@@ -1547,6 +1547,8 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("mov", "rax", "[rbp-" + to_string(-vars->getOffset(varNames[0])) + "]");
 	methodLinear.addInstrToTail("lea", "case" + to_string(caseLabelCount) + "_table", "r12");
 	methodLinear.addInstrToTail("jmp", "[r12+rbx*8+0]");
+	//case#_table (for jmp table)
+	methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_table:", "", "", InstructionList::INSTR_LABEL);
 
 	auto  cmpr = [](Node *a, Node *b) -> bool {
 		Node *atype = (Node *)a->getChildren()[1];
@@ -1579,10 +1581,14 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 
 		jmpTable.push_back(tag);
 	}
+	auto jmpTableCmp = [](string a, string b) -> bool {
+		string aClass = a.substr(a.find("_") + 1);
+		string bClass = b.substr(b.find("_") + 1);
+		return globalSymTable->getClassTag(aClass) < globalSymTable->getClassTag(bClass);
+	};
+	std::sort(jmpTable.begin(), jmpTable.end(), jmpTableCmp);
 
 	//put table directly into assembly
-	//case#_table (for jmp table)
-	methodLinear.addInstrToTail("case" + to_string(caseLabelCount) + "_table:", "", "", InstructionList::INSTR_LABEL);
 	for (string tag : jmpTable) {
 		methodLinear.addInstrToTail(".quad", tag);
 	}
