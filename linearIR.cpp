@@ -1107,7 +1107,7 @@ void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, stri
 void errorHandlerDoExit(InstructionList &methodLinear, string label, string error)
 {
 	//add label
-	methodLinear.addInstrToTail(label, "","", InstructionList::INSTR_LABEL);
+	methodLinear.addInstrToTail(label+":", "","", InstructionList::INSTR_LABEL);
 
 	//add string to data table
 	size_t stringNum = globalStringTable.size();
