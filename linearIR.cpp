@@ -706,13 +706,13 @@ InstructionList &makeCopyIR()
 																					//															  *
 	//lookup size of the object being copied and move size into RCX					//	*This will be calling memcpy and calloc					  *
 	//during the call to callc rdx would be destroyed so I use r13 to hold for now	//															  *
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");							//	move int object from stack into rax						  *
-	methodLinear->addInstrToTail("mov", "[rax+24]", "r13");							//	move int value into r13									  *
+	methodLinear->addInstrToTail("mov", "[rbp+8]", "r13");							//	move int object from stack into rax						  *
+	methodLinear->addInstrToTail("mov", "[r13+8]", "r13");							//	move int value into r13									  *
 	methodLinear->addInstrToTail("imul", "8", "r13");								//	multiply r13 by 8 to get size in # of bytes				  *
 																					//															  *
 	//malloc setup for malloc call of size RCX										//	--PREPARE TO CALL CALLOC--								  *
 	methodLinear->addInstrToTail("mov", "1", "rdi");								//	move 1 into rdi to have 1 element						  *
-	methodLinear->addInstrToTail("mov", "rcx", "rsi");								//	move r13*8 to have element size 						  *
+	methodLinear->addInstrToTail("mov", "r13", "rsi");								//	move r13*8 to have element size 						  *
 	methodLinear->addInstrToTail("call", "calloc");									//	call calloc with 1 element of size r13*8 				  *
 																					//	 --PREPARE FOR MEMCPY--									  *
 	methodLinear->addInstrToTail("mov", "rax", "rdi");								//	move pointer returned by calloc into rdi				  *
@@ -721,7 +721,7 @@ InstructionList &makeCopyIR()
 	methodLinear->addInstrToTail("mov", "r13", "rdx");								//	move r13 into rdx. This was done to save r13 during call  *
 																					//															  *
 	//move source into rsi															//															  *
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rsi");							//	move source address into rsi						      *
+	methodLinear->addInstrToTail("mov", "[rbp+8]", "rsi");							//	move source address into rsi						      *
 																					//															  *
 	//call memcpy																	//															  *
 	methodLinear->addInstrToTail("call", "memcpy");								//	call memcpy with args rdi,rsi,rdx						  *
