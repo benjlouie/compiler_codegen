@@ -98,6 +98,7 @@ InstructionList &makeConcatIR();
 InstructionList &makeSubstrIR();
 InstructionList &makeLThandler();
 InstructionList &makeLTEhandler();
+InstructionList &makeEQhandler();
 InstructionList &makeCaseErrorIR();
 
 /*Some helper functions*/
@@ -247,6 +248,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("String.substr", makeSubstrIR());
 	retMap->emplace("LT..Handler", makeLThandler());
 	retMap->emplace("LTE..Handler", makeLTEhandler());
+	retMap->emplace("EQ..Handler", makeEQhandler());
 	retMap->emplace("case_error", makeCaseErrorIR());
 	retMap->emplace(".data", makeStringsIR());
 	
@@ -2197,4 +2199,67 @@ void setupMethodCall(InstructionList &methodLinear, string methodName, vector<st
 	methodLinear.addInstrToTail("call", methodName);
 	methodLinear.addInstrToTail("add", to_string(8 * formals.size()), "rsp");
 	methodLinear.addInstrToTail("pop", "rbp");
+}
+
+/*
+* keyboard: Forest
+* room: everyone
+*/
+InstructionList &makeEQhandler()
+{
+	methodIR->addNewNode();
+	methodIR->addComment("Handles =");
+
+	//make new bool for return value
+	atCalleeEntry(*methodIR);
+	makeNew(*methodIR, "Bool");
+
+	//param 1 in r10 param 2 in r11
+	getMethodParamIntoRegister(*methodIR, 0, "r10", 2);
+	getMethodParamIntoRegister(*methodIR, 1, "r11", 2);
+
+	//check type and jump to correct tag, fall through if objects
+	methodIR->addInstrToTail("mov", "[r10]", "rax");
+	methodIR->addInstrToTail("cmp", to_string(globalSymTable->getClassTag("Int")), "rax");
+	methodIR->addInstrToTail("je", "IntEQ..Handler");
+	methodIR->addInstrToTail("cmp", to_string(globalSymTable->getClassTag("Bool")), "rax");
+	methodIR->addInstrToTail("je", "IntEQ..Handler");
+	methodIR->addInstrToTail("cmp", to_string(globalSymTable->getClassTag("String")), "rax");
+	methodIR->addInstrToTail("je", "StringEQ..Handler");
+
+	//compare references
+	methodIR->addInstrToTail("cmp", "r10", "r11");
+	methodIR->addInstrToTail("xor", "rax", "rax");
+	methodIR->addInstrToTail("sete", "al");
+	methodIR->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
+	methodIR->addInstrToTail("jmp", "EQ..Handler_end");
+
+	//int/bool compare
+	methodIR->addInstrToTail("IntEQ..Handler:", "", "", InstructionList::INSTR_LABEL);
+	methodIR->addInstrToTail("mov", "[r10" + to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+	methodIR->addInstrToTail("mov", "[r11" + to_string(DEFAULT_VAR_OFFSET) + "]", "r11");
+	methodIR->addInstrToTail("cmp", "r10", "r11");
+	methodIR->addInstrToTail("xor", "rax", "rax");
+	methodIR->addInstrToTail("sete", "al");
+	methodIR->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
+	methodIR->addInstrToTail("jmp", "EQ..Handler_end");
+
+	//string compare
+	methodIR->addInstrToTail("StringEQ..Handler:", "", "", InstructionList::INSTR_LABEL);
+	methodIR->addInstrToTail("lea", "[r10" + to_string(DEFAULT_VAR_OFFSET) + "]", "rsi");
+	methodIR->addInstrToTail("lea", "[r11" + to_string(DEFAULT_VAR_OFFSET) + "]", "rdi");
+	//call strcmp
+	methodIR->addInstrToTail("xor", "rax", "rax");
+	//methodIR->addInstrToTail("push", "rbp");
+	methodIR->addInstrToTail("call", "strcmp");
+	//methodIR->addInstrToTail("pop", "rbp");
+	methodIR->addInstrToTail("cmp", "rax", "0");
+	methodIR->addInstrToTail("sete", "al");
+	methodIR->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
+
+	//exit
+	methodIR->addInstrToTail("EQ..Handler_end:", "", "", InstructionList::INSTR_LABEL);
+	atCalleeExit(*methodIR);
+
+	return *methodIR;
 }
