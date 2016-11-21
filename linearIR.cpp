@@ -2207,6 +2207,7 @@ void setupMethodCall(InstructionList &methodLinear, string methodName, vector<st
 */
 InstructionList &makeEQhandler()
 {
+	InstructionList *methodIR = new InstructionList;
 	methodIR->addNewNode();
 	methodIR->addComment("Handles =");
 
