@@ -103,7 +103,7 @@ InstructionList &makeCaseErrorIR();
 /*Some helper functions*/
 void atCalleeExit(InstructionList &methodLinear);
 void atCalleeEntry(InstructionList &methodLinear);
-void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut);
+void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut, int numFormals);
 void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement);
 void errorHandlerDoExit(InstructionList &methodLinear, string label, string error);
 
@@ -247,9 +247,9 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("String.substr", makeSubstrIR());
 	retMap->emplace("LT..Handler", makeLThandler());
 	retMap->emplace("LTE..Handler", makeLTEhandler());
-
-	retMap->emplace(".data", makeStringsIR());
 	retMap->emplace("case_error", makeCaseErrorIR());
+	retMap->emplace(".data", makeStringsIR());
+	
 
 	return retMap;
 }
@@ -629,6 +629,7 @@ InstructionList &makeTypeNameIR()
 	//Getting the vtable value for self object
 	methodLinear->addInstrToTail("mov", "[rbp + 8]", "rdi");
 	methodLinear->addInstrToTail("mov", "[rdi+16]", "rax");
+	methodLinear->addInstrToTail("mov", "[rax]", "rax");
 	methodLinear->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 	
 	//return
@@ -657,7 +658,7 @@ InstructionList &makeLThandler() {
 	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");													//		move second int value into rbx			*
 																											//												*
 	//compare the values																					//												*
-	methodLinear->addInstrToTail("cmp", "rbx", "rax");														//		comapre rbx and rax						*
+	methodLinear->addInstrToTail("cmp", "ebx", "eax");														//		comapre rbx and rax						*
 	methodLinear->addInstrToTail("jl", "LT.HANDLER.TRUE");													//		if false jump to LT.HANDLER.FALSE		*
 																											//												*
 	//if false move 0 into bool																				//												*
@@ -696,7 +697,7 @@ InstructionList &makeLTEhandler() {
 	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");													//		move second int value into rbx			 *
 																											//												 *
 	//	compare the values																					//												 *
-	methodLinear->addInstrToTail("cmp", "rbx" , "rax");														//		comapre rbx and rax						 *
+	methodLinear->addInstrToTail("cmp", "ebx" , "eax");														//		comapre rbx and rax						 *
 	methodLinear->addInstrToTail("jg", "LTE.HANDLER.FALSE");												//		if false jump to LT.HANDLER.FALSE		 *
 																											//												 *
 	//if true move 1 into bool																				//												 *
@@ -793,12 +794,14 @@ InstructionList &makeOutStringIR()
 	methodLinear->addInstrToTail("lea", stringName,"rdi");		//	push the format string on to stack		*
 																//											*
 	//call printf												//											*
+	methodLinear->addInstrToTail("xor", "rax", "rax");	
 	methodLinear->addInstrToTail("call", "printf");				//	call printf								*
 																//											*
 																//											*
 	//restore rbp												//											*
 	methodLinear->addInstrToTail("pop", "rbp");					//	pop into rbp to restore base pointer	*
 																//											*
+	getMethodParamIntoRegister(*methodLinear,0,"r15", 1);
 	//boiler plate exit stuff									//											*
 	methodLinear->addInstrToTail("mov", "rbp", "rsp");			//	boiler plate exit						*
 	methodLinear->addInstrToTail("ret");						//	return @ no return						*
@@ -831,7 +834,7 @@ InstructionList &makeInStringIR()
 																				//call fgets with stdin														//	--PREPARE TO CALL FGETS--							*
 	methodLinear->addInstrToTail("mov", "rax", "rdi");							//	move pointer to calloc'd memory into rdi			*
 	methodLinear->addInstrToTail("mov", "4096", "rsi");							//	move 16 into rsi to read 16 characters				*
-	methodLinear->addInstrToTail("mov", "0", "rdx");							//	move value for stdin into rdx						*
+	methodLinear->addInstrToTail("mov", "stdin[rip]", "rdx");							//	move value for stdin into rdx						*
 	methodLinear->addInstrToTail("call", "fgets");
 
 
@@ -865,17 +868,21 @@ InstructionList &makeOutIntIR()
 	//boiler plate entry
 	atCalleeEntry(*methodLinear);
 
-	getMethodParamIntoRegister(*methodLinear, 1, "rax");
+	getMethodParamIntoRegister(*methodLinear, 1, "rax", 1);
 	methodLinear->addInstrToTail("xor", "rsi", "rsi");
-	methodLinear->addInstrToTail("mov", "[rax+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rsi");
+	methodLinear->addInstrToTail("mov", "[rax+" + to_string(DEFAULT_VAR_OFFSET) + "]", "esi");
 
 	//cdqe call
 	//methodLinear->addInstrToTail("cdqe");
 
 	//calls the printf function
 	methodLinear->addInstrToTail("lea", stringName, "rdi");
+	methodLinear->addInstrToTail("push", "rbp");
+	methodLinear->addInstrToTail("xor", "rax", "rax");
 	methodLinear->addInstrToTail("call", "printf");
-		
+	methodLinear->addInstrToTail("pop", "rbp");
+	getMethodParamIntoRegister(*methodLinear,0,"r15", 1);
+
 	//return
 	atCalleeExit(*methodLinear);
 
@@ -924,7 +931,7 @@ InstructionList &makeInIntIR()
 	methodLinear->addInstrToTail("mov", "0", "rax");							//	move 0 into rax										*
 	methodLinear->addInstrToTail("push", "rax");								//	push rax											*
 	methodLinear->addInstrToTail("mov", "rsp", "rdx");							//	move rsp into rdx this makes a temp value for sscanf*
-	methodLinear->addInstrToTail("mov", stringName, "rsi");						//	move our format string into rsi						*
+	methodLinear->addInstrToTail("lea", stringName, "rsi");						//	move our format string into rsi						*
 	methodLinear->addInstrToTail("call", "sscanf");								//	call sscanf											*
 																				//														*
 	//check to make sure the return of sscanf is between INT_MAX and INT_MIN	//														*
@@ -965,7 +972,7 @@ InstructionList &makeLengthIR()
 	methodLinear->addInstrToTail("xor","al","al");
 
 	//put string pointer into rdi
-	getMethodParamIntoRegister(*methodLinear, 0, "r10");
+	getMethodParamIntoRegister(*methodLinear, 0, "r10", 0);
 	/*CHECK ME TO MAKE SURE I'M GETTING STRING RIGHT.*/
 	methodLinear->addInstrToTail("mov", "[r10+24]", "rdi");
 
@@ -1017,7 +1024,7 @@ InstructionList &makeConcatIR()
 
 	/*get length of final string*/
 	//Get self
-	getMethodParamIntoRegister(*methodLinear, 0, "r10");
+	getMethodParamIntoRegister(*methodLinear, 0, "r10", 1);
 	//Call strlen on it
 	setupMethodCall(*methodLinear, "String.length", { "r10" });
 	//get the length of the string onto the stack
@@ -1025,13 +1032,13 @@ InstructionList &makeConcatIR()
 	methodLinear->addInstrToTail("push", "r14");
 
 	//Same as above for self, except now it's the first formal param
-	getMethodParamIntoRegister(*methodLinear, 1, "r11");
+	getMethodParamIntoRegister(*methodLinear, 1, "r11", 1);
 	setupMethodCall(*methodLinear, "String.length", { "r11" });
 	methodLinear->addInstrToTail("mov", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r14");
 
 	methodLinear->addInstrToTail("pop", "r10");
 	methodLinear->addInstrToTail("add", "r14", "r10");
-	methodLinear->addInstrToTail("incr", "r10");
+	methodLinear->addInstrToTail("inc", "r10");
 
 	/*make space for final string*/
 	callCalloc(*methodLinear, "r10", "1");
@@ -1039,7 +1046,7 @@ InstructionList &makeConcatIR()
 	/*copy in self*/
 	methodLinear->addInstrToTail("push", "rax");
 	methodLinear->addInstrToTail("mov", "rax", "rdi");
-	getMethodParamIntoRegister(*methodLinear, 0, "r10");
+	getMethodParamIntoRegister(*methodLinear, 0, "r10", 1);
 	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET)+"]", "rsi");
 
 	methodLinear->addInstrToTail("call", "strcpy");
@@ -1048,7 +1055,7 @@ InstructionList &makeConcatIR()
 	//Pop the created mem, and then push to save it again.
 	methodLinear->addInstrToTail("pop", "rdi #I swear we want these two functions. Trust me.");
 	methodLinear->addInstrToTail("push", "rdi");
-	getMethodParamIntoRegister(*methodLinear, 1, "r11");
+	getMethodParamIntoRegister(*methodLinear, 1, "r11", 1);
 	methodLinear->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rsi");
 
 	methodLinear->addInstrToTail("call", "strcat");
@@ -1080,14 +1087,14 @@ InstructionList &makeSubstrIR()
 
 
 	/*Get params and change second to be the spot of a character*/ 
-	getMethodParamIntoRegister(*methodLinear, 1, "r10");
+	getMethodParamIntoRegister(*methodLinear, 1, "r10", 2);
 	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r12");
-	getMethodParamIntoRegister(*methodLinear, 2, "r11");
+	getMethodParamIntoRegister(*methodLinear, 2, "r11", 2);
 	methodLinear->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r13");
 	methodLinear->addInstrToTail("add", "r12", "r13");
 
 	/*get length of self*/
-	getMethodParamIntoRegister(*methodLinear, 0, "r14");
+	getMethodParamIntoRegister(*methodLinear, 0, "r14", 2);
 	//Save param1 and then param2, since destroyed on function call
 	methodLinear->addInstrToTail("push", "r12");
 	methodLinear->addInstrToTail("push", "r13");
@@ -1098,7 +1105,7 @@ InstructionList &makeSubstrIR()
 	/*Check if end > len(self). If it is, error and exit*/
 	//compare param2 to length
 	methodLinear->addInstrToTail("pop", "r8");
-	methodLinear->addInstrToTail("cmp", "r8", "r15");
+	methodLinear->addInstrToTail("cmp", "r15", "r8");
 	methodLinear->addInstrToTail("jg", endGreaterThanStringEndLabel);
 
 	//CHECK IF NEED TO SAVE LENGTH OF ORIGINAL STRING - I DON'T THINK SO, BUT IF you do uncomment the next line.'
@@ -1106,19 +1113,19 @@ InstructionList &makeSubstrIR()
 
 	/*Get address of string and add param1's int value*/
 	methodLinear->addInstrToTail("pop", "r9");
-	getMethodParamIntoRegister(*methodLinear, 0, "r14");
+	getMethodParamIntoRegister(*methodLinear, 0, "r14", 2);
 	methodLinear->addInstrToTail("mov", "[r14+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r15");
 	methodLinear->addInstrToTail("add", "r9", "r15");
 	methodLinear->addInstrToTail("push", "r9");
 
 	/*make space the size of param2 + 1*/
 	methodLinear->addInstrToTail("push", "r8");
-	methodLinear->addInstrToTail("incr", "r8");
+	methodLinear->addInstrToTail("inc", "r8");
 	callCalloc(*methodLinear, "r8", "1");
 
 	/*memcpy size of param2 + 1 into new space*/
 	methodLinear->addInstrToTail("mov", "rax", "rdi");
-	getMethodParamIntoRegister(*methodLinear, 2, "rdx");
+	getMethodParamIntoRegister(*methodLinear, 2, "rdx", 2);
 	methodLinear->addInstrToTail("mov", "[rdx+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rdx");
 	methodLinear->addInstrToTail("mov", "r15", "rsi");
 	methodLinear->addInstrToTail("call", "memcpy");
@@ -1163,9 +1170,13 @@ void atCalleeExit(InstructionList &methodLinear)
 /*
  * @author: Matt 
  */
-void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut)
+void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut, int numFormals)
 {
-	int numOffRBP = 8 + 8*numParam;
+	int numOffRBP;
+	if (numParam == 0)
+		numOffRBP = 8;
+	else
+		numOffRBP = 16 + 8*(numFormals-numParam);
 	methodLinear.addInstrToTail("mov", "[rbp + " + to_string(numOffRBP) + "]", placeToPut);
 }
 
@@ -1699,11 +1710,17 @@ void doTilde(InstructionList &methodLinear, Node *expression)
 	methodLinear.addNewNode();
 	methodLinear.addComment("Negate an integer");
 	
+	//make new Int
+	makeNew(methodLinear,"Int");
+
+	//zero out rax
+	methodLinear.addInstrToTail("xor","rax","rax");
+
 	//Put the reference in a register
 	methodLinear.addInstrToTail("pop", "rbx");
 
 	//put the value into rax
-	methodLinear.addInstrToTail("mov", "[rbx+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rax");
+	methodLinear.addInstrToTail("mov", "[rbx+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "eax");
 
 	//not the value and add 1 (2's complement)
 	methodLinear.addInstrToTail("not", "eax");
@@ -1713,9 +1730,11 @@ void doTilde(InstructionList &methodLinear, Node *expression)
 	makeNew(methodLinear, expression->valType);
 
 	//put back
+	
 	methodLinear.addInstrToTail("mov", "rax", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	
 
-	methodLinear.addInstrToTail("push", "rbx");
+	methodLinear.addInstrToTail("push", "r15");
 }
 
 /*
@@ -1778,6 +1797,7 @@ void doNew(InstructionList &methodLinear, Node *expression)
 	methodLinear.addComment("Making a new object of type " + expression->valType);
 	
 	makeNew(methodLinear, expression->valType);
+	methodLinear.addInstrToTail("push ","r15");
 }
 
 /*
@@ -1794,11 +1814,11 @@ void doIsVoid(InstructionList &methodLinear, Node *expression)
 	//get pointer
 	methodLinear.addInstrToTail("pop", "rbx");
 
+	methodLinear.addInstrToTail("xor", "rax", "rax");
 	methodLinear.addInstrToTail("cmp", "0", "rbx");
+	methodLinear.addInstrToTail("sete", "al");
 
-	methodLinear.addInstrToTail("sete", "rax");
-
-	makeNew(methodLinear, "Boolean");
+	makeNew(methodLinear, "Bool");
 	
 	//Put it back
 	methodLinear.addInstrToTail("mov", "rax", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
@@ -1823,7 +1843,7 @@ void doWhile(InstructionList &methodLinear, Node *expression) {
 	makeExprIR_recursive(methodLinear,(Node*)children[0]);
 	methodLinear.addInstrToTail("pop", "rax");
 	methodLinear.addInstrToTail("mov", "[rax+" + std::to_string(DEFAULT_VAR_OFFSET) + "]","rax");
-	methodLinear.addInstrToTail("cmp", "rax",std::to_string(false));
+	methodLinear.addInstrToTail("cmp",std::to_string(false), "rax");
 
 	//add jump to end of while if condition fails
 	methodLinear.addInstrToTail("je", "While_End" + std::to_string(countSave));
