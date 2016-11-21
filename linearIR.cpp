@@ -1670,8 +1670,7 @@ void doEqual(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r13");
 	methodLinear.addInstrToTail("pop", "r12");
 
-	//TODO: write EQ handler
-	setupMethodCall(methodLinear, "EQ..Handler", { "r13", "r12" });
+	setupMethodCall(methodLinear, "EQ..Handler", { "r13", "r12","rax" });
 
 	methodLinear.addInstrToTail("push", "r15");
 }
@@ -2216,8 +2215,8 @@ InstructionList &makeEQhandler()
 	makeNew(*methodIR, "Bool");
 
 	//param 1 in r10 param 2 in r11
-	getMethodParamIntoRegister(*methodIR, 0, "r10", 2);
-	getMethodParamIntoRegister(*methodIR, 1, "r11", 2);
+	getMethodParamIntoRegister(*methodIR, 1, "r10", 2);
+	getMethodParamIntoRegister(*methodIR, 2, "r11", 2);
 
 	//check type and jump to correct tag, fall through if objects
 	methodIR->addInstrToTail("mov", "[r10]", "rax");
@@ -2229,32 +2228,34 @@ InstructionList &makeEQhandler()
 	methodIR->addInstrToTail("je", "StringEQ..Handler");
 
 	//compare references
-	methodIR->addInstrToTail("cmp", "r10", "r11");
 	methodIR->addInstrToTail("xor", "rax", "rax");
+	methodIR->addInstrToTail("cmp", "r10", "r11");
 	methodIR->addInstrToTail("sete", "al");
 	methodIR->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 	methodIR->addInstrToTail("jmp", "EQ..Handler_end");
 
 	//int/bool compare
 	methodIR->addInstrToTail("IntEQ..Handler:", "", "", InstructionList::INSTR_LABEL);
-	methodIR->addInstrToTail("mov", "[r10" + to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
-	methodIR->addInstrToTail("mov", "[r11" + to_string(DEFAULT_VAR_OFFSET) + "]", "r11");
-	methodIR->addInstrToTail("cmp", "r10", "r11");
+	methodIR->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+	methodIR->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r11");
 	methodIR->addInstrToTail("xor", "rax", "rax");
+	methodIR->addInstrToTail("cmp", "r10", "r11");
 	methodIR->addInstrToTail("sete", "al");
 	methodIR->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 	methodIR->addInstrToTail("jmp", "EQ..Handler_end");
 
 	//string compare
 	methodIR->addInstrToTail("StringEQ..Handler:", "", "", InstructionList::INSTR_LABEL);
-	methodIR->addInstrToTail("lea", "[r10" + to_string(DEFAULT_VAR_OFFSET) + "]", "rsi");
-	methodIR->addInstrToTail("lea", "[r11" + to_string(DEFAULT_VAR_OFFSET) + "]", "rdi");
+	methodIR->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rsi");
+	methodIR->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rdi");
 	//call strcmp
 	methodIR->addInstrToTail("xor", "rax", "rax");
 	//methodIR->addInstrToTail("push", "rbp");
 	methodIR->addInstrToTail("call", "strcmp");
 	//methodIR->addInstrToTail("pop", "rbp");
-	methodIR->addInstrToTail("cmp", "rax", "0");
+	methodIR->addInstrToTail("mov", "rax", "rbx");
+	methodIR->addInstrToTail("xor", "rax", "rax");
+	methodIR->addInstrToTail("cmp", "0", "rbx");
 	methodIR->addInstrToTail("sete", "al");
 	methodIR->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 
