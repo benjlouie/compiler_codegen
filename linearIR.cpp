@@ -1082,10 +1082,14 @@ InstructionList &makeConcatIR()
 	return *methodLinear;
 }
 
+/*
+ * @author: Matt
+ */
 InstructionList &makeSubstrIR()
 {
 	//TODO: Check if start or length is negative
 	string endGreaterThanStringEndLabel = "SUBSTR.HANDLER.EGTLENSTR";
+	string negativeValueInSubstr = "SUBSTR.HANDLER.NVIS";
 	InstructionList *methodLinear = new InstructionList;
 
 	methodLinear->addNewNode();
@@ -1097,8 +1101,15 @@ InstructionList &makeSubstrIR()
 	/*Get params and change second to be the spot of a character*/ 
 	getMethodParamIntoRegister(*methodLinear, 1, "r10", 2);
 	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r12");
+	//Check and see if it's negative.
+	methodLinear->addInstrToTail("cmp", "0", "r12d");
+	methodLinear->addInstrToTail("jl", negativeValueInSubstr);
+
 	getMethodParamIntoRegister(*methodLinear, 2, "r11", 2);
 	methodLinear->addInstrToTail("mov", "[r11+" + to_string(DEFAULT_VAR_OFFSET) + "]", "r13");
+	//Check and see if it's negative.
+	methodLinear->addInstrToTail("cmp", "0", "r13d");
+	methodLinear->addInstrToTail("jl", negativeValueInSubstr);
 	methodLinear->addInstrToTail("add", "r12", "r13");
 
 	/*get length of self*/
@@ -1149,6 +1160,7 @@ InstructionList &makeSubstrIR()
 
 	/*end > len(self) handler*/
 	errorHandlerDoExit(*methodLinear, endGreaterThanStringEndLabel,"End value was past the end of the string.");
+	errorHandlerDoExit(*methodLinear, negativeValueInSubstr, "Negative value in parameter for substring.");
 
 
 	return *methodLinear;
