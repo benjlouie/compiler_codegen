@@ -1739,7 +1739,6 @@ void doTilde(InstructionList &methodLinear, Node *expression)
 
 	methodLinear.addInstrToTail("inc", "eax");
 
-	makeNew(methodLinear, expression->valType);
 
 	//put back
 	
