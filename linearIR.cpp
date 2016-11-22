@@ -344,6 +344,7 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 	while (name != "Object") {
 		for (Node *attr : (*attributes)[name]) {
 			varName = ((Node *)attr->getChildren()[0])->value;
+			string varType = ((Node *)attr->getChildren()[1])->value;
 			expr = (Node *)attr->getChildren()[2];
 			var = globalSymTable->getVariable(varName);
 
@@ -352,6 +353,10 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 
 			if (expr->type == AST_NULL) {
 				classLinear->addInstrToTail("mov", "0", "rax");
+				if (varType == "Int" || varType == "String" || varType == "Bool") {
+					makeNew(*classLinear, varType);
+					classLinear->addInstrToTail("mov", "r15", "rax");
+				}
 			}
 			else {
 				makeExprIR_recursive(*classLinear, expr);
@@ -1997,8 +2002,14 @@ void doLet(InstructionList &methodLinear, Node *expression)
 		methodLinear.addInstrToTail("mov", "r12", "[rbp-" + std::to_string(-vars->getOffset(varName)) + "]");
 	}
 	else {
-		//init value to void
-		methodLinear.addInstrToTail("mov", "0", "[rbp-" + std::to_string(-vars->getOffset(varName)) + "]");
+		if (varType == "Int" || varType == "String" || varType == "Bool") {
+			makeNew(methodLinear, varType);
+			methodLinear.addInstrToTail("mov", "r15", "[rbp-" + std::to_string(-vars->getOffset(varName)) + "]");
+		}
+		else {
+			//init value to void
+			methodLinear.addInstrToTail("mov", "0", "QWORD PTR [rbp-" + std::to_string(-vars->getOffset(varName)) + "]");
+		}
 	}
 
 	methodLinear.addNewNode();
