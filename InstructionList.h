@@ -1,7 +1,9 @@
 #pragma once
 #include <iostream>
+#include <fstream>
 #include<vector>
 #include<string>
+using namespace std;
 
 class InstructionList
 {
@@ -46,7 +48,7 @@ public:
 
 	void addPostLabel(std::string postLabel);
 
-	void printIR();
+	void printIR(fstream &outfile);
 
 
 

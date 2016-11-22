@@ -62,34 +62,34 @@ InstructionList::~InstructionList() {
 /* 
  * Author: Ben Louie
  */
-void InstructionList::printIR() {
+void InstructionList::printIR(fstream &outfile) {
 	InstructionNode * cur = head;
 
 	while (cur) {
-		std::cout << cur->comment;
+		outfile << cur->comment;
 		if (cur->prelabel != "") {
-			std::cout << cur->prelabel << '\n';
+			outfile << cur->prelabel << '\n';
 		}
 
 		for (auto instr : cur->instructions) {
 			if (instr.extraData == INSTR_OK)
-				std::cout << "\t";
-			std::cout << instr.instruction;
+				outfile << "\t";
+			outfile << instr.instruction;
 			if (instr.dest != "") {
-				std::cout << "\t" << instr.dest;
+				outfile << "\t" << instr.dest;
 				if (instr.src != "") {
-					std::cout << ", " << instr.src;
+					outfile << ", " << instr.src;
 				}
 			}
 			else if (instr.src != "") {
-				std::cout << "\t" << instr.src;
+				outfile << "\t" << instr.src;
 			}
-			std::cout << '\n';
+			outfile << '\n';
 		}
 		if (cur->postlabel != "") {
-			std::cout << cur->postlabel << '\n';
+			outfile << cur->postlabel << '\n';
 		}
-		std::cout << "#============================================" << '\n';
+		outfile << "#============================================" << '\n';
 
 		cur = cur->next;
 	}

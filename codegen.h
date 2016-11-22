@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <unordered_map>
+#include <iostream>
+#include <fstream>
 #include "../src/ast.h"
 #include "../compiler_semantics/symbolTable.h"
 #include "linearIR.h"
@@ -17,6 +19,6 @@ extern unordered_map<string,string> globalTypeList;
 extern unordered_map<size_t, string> globalStringTable;
 
 
-void code();
+void code(fstream &outfile);
 
 #endif // !__CODEGEN_H_

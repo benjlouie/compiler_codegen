@@ -1,6 +1,6 @@
 #include "codegen.h"
 
-void code()
+void code(fstream &outfile)
 {
 	//generate offsets for symbolTable variables
 	globalSymTable->generateOffsets();
@@ -17,17 +17,17 @@ void code()
     unordered_map<std::string, InstructionList &> *sections = makeLinear();
 
 	//header then data then .text then vtable
-	sections->at("#header").printIR();
-	cout << ".data\n";
-	sections->at(".data").printIR();
-	cout << ".text\n";
-	sections->at("#global_vtable").printIR();
+	sections->at("#header").printIR(outfile);
+	outfile << ".data\n";
+	sections->at(".data").printIR(outfile);
+	outfile << ".text\n";
+	sections->at("#global_vtable").printIR(outfile);
 	for (auto it = sections->begin(); it != sections->end(); it++) {
 		if (it->first == ".data" || it->first[0] == '#') {
 			continue;
 		}
-		cout << it->first << ":\n";
-		it->second.printIR();
+		outfile << it->first << ":\n";
+		it->second.printIR(outfile);
 	}
        
     //highLevelInstrSelection();
