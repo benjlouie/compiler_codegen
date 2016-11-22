@@ -1714,6 +1714,8 @@ void doTilde(InstructionList &methodLinear, Node *expression)
 	//make new Int
 	makeNew(methodLinear,"Int");
 
+	makeNew(methodLinear, expression->valType);
+
 	//zero out rax
 	methodLinear.addInstrToTail("xor","rax","rax");
 
@@ -1728,7 +1730,6 @@ void doTilde(InstructionList &methodLinear, Node *expression)
 
 	methodLinear.addInstrToTail("inc", "eax");
 
-	makeNew(methodLinear, expression->valType);
 
 	//put back
 	
