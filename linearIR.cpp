@@ -100,6 +100,7 @@ InstructionList &makeLThandler();
 InstructionList &makeLTEhandler();
 InstructionList &makeEQhandler();
 InstructionList &makeCaseErrorIR();
+InstructionList &makeDivZeroErorIR();
 InstructionList &makeCaseVoidErrorIR();
 InstructionList &makeDispatchErrorIR();
 
@@ -252,6 +253,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("LTE..Handler", makeLTEhandler());
 	retMap->emplace("EQ..Handler", makeEQhandler());
 	retMap->emplace("case_error", makeCaseErrorIR());
+	retMap->emplace("divzero_error", makeDivZeroErorIR());
 	retMap->emplace("case_void_error", makeCaseVoidErrorIR());
 	retMap->emplace("dispatch_error", makeDispatchErrorIR());
 	retMap->emplace(".data", makeStringsIR());
@@ -1573,6 +1575,11 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 	//get the two values
 	methodLinear.addInstrToTail("pop", "r13");
 	methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rbx");
+
+	//compare the divisor to 0. If it is equal to or less than, error.
+
+	methodLinear.addInstrToTail("cmp", "0", "rbx");
+	methodLinear.addInstrToTail("je", "divzero_error");
 	
 	methodLinear.addInstrToTail("pop", "r12");
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rax");
@@ -2198,6 +2205,14 @@ InstructionList &makeCaseErrorIR()
 	caseErr->addNewNode();
 	errorHandlerDoExit(*caseErr, "#case_error", "Case without matching branch");
 	return *caseErr;
+}
+
+InstructionList &makeDivZeroErorIR()
+{
+	InstructionList *divZeroErr = new InstructionList;
+	divZeroErr->addNewNode();
+	errorHandlerDoExit(*divZeroErr, "#divzero_error", "Dividing by zero not allowed.");
+	return *divZeroErr;
 }
 
 /*
