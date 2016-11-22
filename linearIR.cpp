@@ -100,6 +100,8 @@ InstructionList &makeLThandler();
 InstructionList &makeLTEhandler();
 InstructionList &makeEQhandler();
 InstructionList &makeCaseErrorIR();
+InstructionList &makeCaseVoidErrorIR();
+InstructionList &makeDispatchErrorIR();
 
 /*Some helper functions*/
 void atCalleeExit(InstructionList &methodLinear);
@@ -250,6 +252,8 @@ unordered_map<string,InstructionList &> *makeLinear()
 	retMap->emplace("LTE..Handler", makeLTEhandler());
 	retMap->emplace("EQ..Handler", makeEQhandler());
 	retMap->emplace("case_error", makeCaseErrorIR());
+	retMap->emplace("case_void_error", makeCaseVoidErrorIR());
+	retMap->emplace("dispatch_error", makeDispatchErrorIR());
 	retMap->emplace(".data", makeStringsIR());
 	
 
@@ -2034,6 +2038,8 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 	if (caller->type != AST_NULL) { //must evaluate caller
 		makeExprIR_recursive(methodLinear, caller);
 		methodLinear.addInstrToTail("pop", "r12");
+		methodLinear.addInstrToTail("cmp", "0","r12");
+		methodLinear.addInstrToTail("je", "dispatch_error");
 	}
 	else { //caller is self
 		methodLinear.addInstrToTail("mov", "[rbp+8]", "r12");
@@ -2068,6 +2074,18 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 }
 
 /*
+* 
+*/
+InstructionList &makeDispatchErrorIR() 
+{
+	InstructionList *caseErr = new InstructionList;
+	caseErr->addNewNode();
+	errorHandlerDoExit(*caseErr, "#dispatch_error", "Dispatch on void");
+	return *caseErr;
+}
+
+
+/*
 * Authors: Forest, Ben
 */
 void doCaseStatement(InstructionList &methodLinear, Node *expression)
@@ -2081,6 +2099,8 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 	Node *caseList = (Node *)children[1];
 	makeExprIR_recursive(methodLinear, caseExpr);
 	methodLinear.addInstrToTail("pop", "rax");
+	methodLinear.addInstrToTail("cmp", "0", "rax");
+	methodLinear.addInstrToTail("je", "case_void_error");
 	methodLinear.addInstrToTail("mov", "[rax]", "rbx");
 
 	//sort cases and grab ids
@@ -2177,6 +2197,17 @@ InstructionList &makeCaseErrorIR()
 	InstructionList *caseErr = new InstructionList;
 	caseErr->addNewNode();
 	errorHandlerDoExit(*caseErr, "#case_error", "Case without matching branch");
+	return *caseErr;
+}
+
+/*
+* 
+*/
+InstructionList &makeCaseVoidErrorIR() 
+{
+	InstructionList *caseErr = new InstructionList;
+	caseErr->addNewNode();
+	errorHandlerDoExit(*caseErr, "#case_void_error", "Case on void");
 	return *caseErr;
 }
 
