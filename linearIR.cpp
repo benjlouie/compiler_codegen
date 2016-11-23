@@ -1777,6 +1777,9 @@ void doNot(InstructionList &methodLinear, Node *expression)
 	methodLinear.addNewNode();
 	methodLinear.addComment("Not-ing a bool with value" + expression->value);
 
+	//make a new boolean 
+	makeNew(methodLinear, expression->valType);
+	
 	//Get the value into a regeister
 	methodLinear.addInstrToTail("pop", "rbx");
 
@@ -1785,7 +1788,7 @@ void doNot(InstructionList &methodLinear, Node *expression)
 	//XOR the value with 1 - 0^1 = 1, 1^1 = 0
 	methodLinear.addInstrToTail("xor", "1", "eax");
 
-	makeNew(methodLinear, expression->valType);
+	
 
 	//Put it back
 	methodLinear.addInstrToTail("mov", "rax", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
@@ -1885,7 +1888,8 @@ void doWhile(InstructionList &methodLinear, Node *expression) {
 
 	//add label to jump to if condition fails and push 0 since while loops return void
 	methodLinear.addInstrToTail("While_End" + std::to_string(countSave) + ":", "", "", InstructionList::INSTR_LABEL);
-	methodLinear.addInstrToTail("push", "0");
+	methodLinear.addInstrToTail("xor", "rax", "rax");
+	methodLinear.addInstrToTail("push", "rax");
 }
 
 /*
