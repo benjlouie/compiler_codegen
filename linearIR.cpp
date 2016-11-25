@@ -659,16 +659,16 @@ InstructionList &makeLThandler() {
 	methodLinear->addComment("LT Handler: Checking if two values are LT ");									//***********************************************
 																											//*					INFO PAGE					*
 	//entrance stuff																						//***********************************************
-	methodLinear->addInstrToTail("mov", "rsp", "rbp");														//		boiler plate entry stuff				*
+	atCalleeEntry(*methodLinear);																			//		boiler plate entry stuff				*
 																											//												*
 	//make a new bool																						//												*
 	makeNew(*methodLinear, "Bool");																			//		make new boolean object					*
 																											//												*
 	//mov values to compare into rax and rbx																//												*
 	methodLinear->addInstrToTail("mov", "[rbp+8]", "rax");													//		move first int pointer into rax			*
-	methodLinear->addInstrToTail("mov", "[rax+24]", "rax");													//		move second int value into rax			*
+	methodLinear->addInstrToTail("mov", "[rax+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rax");				//		move second int value into rax			*
 	methodLinear->addInstrToTail("mov", "[rbp+16]", "rbx");													//		move second int pointer into rbx		*
-	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");													//		move second int value into rbx			*
+	methodLinear->addInstrToTail("mov", "[rbx+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rbx");				//		move second int value into rbx			*
 																											//												*
 	//compare the values																					//												*
 	methodLinear->addInstrToTail("cmp", "ebx", "eax");														//		comapre rbx and rax						*
@@ -683,8 +683,7 @@ InstructionList &makeLThandler() {
 																											//												*
 	//return the bool and return from function																//												*
 	methodLinear->addInstrToTail("LT.HANDLER.END:","","",InstructionList::INSTR_LABEL);						//LT.HANDLER.END								*
-	methodLinear->addInstrToTail("mov", "rbp", "rsp");														//		boiler plate end stuff					*
-	methodLinear->addInstrToTail("ret");																	//		return @ r15							*
+	atCalleeExit(*methodLinear);																			//		boiler plate end stuff					*
 																											//***********************************************
 
 	return *methodLinear;
@@ -698,16 +697,16 @@ InstructionList &makeLTEhandler() {
 	methodLinear->addComment("LT Handler: Checking if two values are LTE");									//************************************************
 																											//*					INFO PAGE                    *
 	//entrance stuff																						//************************************************
-	methodLinear->addInstrToTail("mov", "rsp", "rbp");														//		boiler plate entry stuff				 *
+	atCalleeEntry(*methodLinear);														//		boiler plate entry stuff				 *
 																											//												 *
 	//	make a new bool																						//												 *
 	makeNew(*methodLinear, "Bool");																			//		make new boolean object					 *
 																											//												 *
 	//	mov values to compare into rax and rbx																//												 *
-	methodLinear->addInstrToTail("mov", "[rbp+8]", "rax");													//		move first int pointer into rax			 *
-	methodLinear->addInstrToTail("mov", "[rax+24]", "rax");													//		move second int value into rax			 *
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rbx");													//		move second int pointer into rbx		 *
-	methodLinear->addInstrToTail("mov", "[rbx+24]", "rbx");													//		move second int value into rbx			 *
+	getMethodParamIntoRegister(*methodLinear, 8, "rax", 4);													//		move first int pointer into rax			 *
+	methodLinear->addInstrToTail("mov", "[rax+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rax");				//		move first int value into rax			 *
+	getMethodParamIntoRegister(*methodLinear, 8, "rbx", 4);													//		move second int pointer into rbx		 *
+	methodLinear->addInstrToTail("mov", "[rbx+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rbx");				//		move second int value into rbx			 *
 																											//												 *
 	//	compare the values																					//												 *
 	methodLinear->addInstrToTail("cmp", "ebx" , "eax");														//		comapre rbx and rax						 *
@@ -722,8 +721,7 @@ InstructionList &makeLTEhandler() {
 																											//												 *
 	//return the bool and return from function																//												 *
 	methodLinear->addInstrToTail("LTE.HANDLER.END:", "", "", InstructionList::INSTR_LABEL);					//LT.HANDLER.END								 *
-	methodLinear->addInstrToTail("mov", "rbp", "rsp");														//		boiler plate end stuff					 *
-	methodLinear->addInstrToTail("ret");																	//		return @ r15							 *
+	atCalleeExit(*methodLinear);																			//		boiler plate end stuff					 *
 																											//************************************************
 
 	return *methodLinear;
@@ -742,18 +740,14 @@ InstructionList &makeCopyIR()
 	methodLinear->addNewNode();														//*************************************************************
 	methodLinear->addComment("Copy ");												//							INFO PAGE						  *
 	//boiler plate entry stuff														//*************************************************************
-	methodLinear->addInstrToTail("mov", "rsp", "rbp");								//	boiler plate entry stuff								  *
+	atCalleeEntry(*methodLinear);													//	boiler plate entry stuff								  *
 																					//															  *
 	//lookup size of the object being copied and move size into RCX					//	*This will be calling memcpy and calloc					  *
 	//during the call to callc rdx would be destroyed so I use r13 to hold for now	//															  *
-	methodLinear->addInstrToTail("mov", "[rbp+8]", "r13");							//	move int object from stack into rax						  *
-	methodLinear->addInstrToTail("mov", "[r13+8]", "r13");							//	move int value into r13									  *
-	methodLinear->addInstrToTail("imul", "8", "r13");								//	multiply r13 by 8 to get size in # of bytes				  *
+	getMethodParamIntoRegister(*methodLinear, 0, "rax", 4);							//	move int object from stack into rax						  *
+	methodLinear->addInstrToTail("mov", "[r13+8]", "r13");							//	move int (size of object to make) value into r13		  *
 																					//															  *
-	//malloc setup for malloc call of size RCX										//	--PREPARE TO CALL CALLOC--								  *
-	methodLinear->addInstrToTail("mov", "1", "rdi");								//	move 1 into rdi to have 1 element						  *
-	methodLinear->addInstrToTail("mov", "r13", "rsi");								//	move r13*8 to have element size 						  *
-	methodLinear->addInstrToTail("call", "calloc");									//	call calloc with 1 element of size r13*8 				  *
+	callCalloc(*methodLinear, "r13", "8");											//  call calloc with int * 8 so that we get 8*size in bytes	  *											
 																					//	 --PREPARE FOR MEMCPY--									  *
 	methodLinear->addInstrToTail("mov", "rax", "rdi");								//	move pointer returned by calloc into rdi				  *
 																					//															  *
@@ -770,8 +764,7 @@ InstructionList &makeCopyIR()
 	methodLinear->addInstrToTail("mov", "rax", "r15");								//	move the return of memcpy into r15						  *
 																					//															  *
 	//boiler plate exit stuff														//															  *
-	methodLinear->addInstrToTail("mov", "rbp", "rsp");								//	boiler plate exit stuff									  *
-	methodLinear->addInstrToTail("ret");											//	return @ r15											  *
+	atCalleeExit(*methodLinear);													//	boiler plate exit stuff									  *
 																					//*************************************************************
 	return *methodLinear;
 }
@@ -791,34 +784,34 @@ InstructionList &makeOutStringIR()
 	globalStringTable[stringNum] = "%s";
 	string stringName = ".string" + std::to_string(stringNum);
 
-	methodLinear->addNewNode();									//*******************************************
-	methodLinear->addComment("OUT STRING");						//			     INFO PAGE					*
-	//boiler plate entry stuff									//*******************************************
-	methodLinear->addInstrToTail("mov", "rsp", "rbp");			//	boiler plate entry						*
-																//											*
-	//push the base pointer										//											*
-	methodLinear->addInstrToTail("push", "rbp");				//	push the base pointer					*
-																//											*
-	//push string												//	--PREPARE FOR PRINTF--					*
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");		//	move pointer to string object into rax	*
-	methodLinear->addInstrToTail("mov", "[rax+24]", "rsi");		//	push pointer to string on to stack		*
-																//											*
-	//push format												//											*
-	methodLinear->addInstrToTail("lea", stringName,"rdi");		//	push the format string on to stack		*
-																//											*
-	//call printf												//											*
-	methodLinear->addInstrToTail("xor", "rax", "rax");	
-	methodLinear->addInstrToTail("call", "printf");				//	call printf								*
-																//											*
-																//											*
-	//restore rbp												//											*
-	methodLinear->addInstrToTail("pop", "rbp");					//	pop into rbp to restore base pointer	*
-																//											*
-	getMethodParamIntoRegister(*methodLinear,0,"r15", 1);
-	//boiler plate exit stuff									//											*
-	methodLinear->addInstrToTail("mov", "rbp", "rsp");			//	boiler plate exit						*
-	methodLinear->addInstrToTail("ret");						//	return @ no return						*
-																//*******************************************
+	methodLinear->addNewNode();																		//*******************************************
+	methodLinear->addComment("OUT STRING");															//			     INFO PAGE					*
+	//boiler plate entry stuff																		//*******************************************
+	atCalleeEntry(*methodLinear);																	//	boiler plate entry						*
+																									//											*
+	//push the base pointer																			//											*
+	methodLinear->addInstrToTail("push", "rbp");													//	push the base pointer					*
+																									//											*
+	//push string																					//	--PREPARE FOR PRINTF--					*
+	methodLinear->addInstrToTail("mov", "[rbp+16]", "rax");											//	move pointer to string object into rax	*
+	methodLinear->addInstrToTail("mov", "[rax+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rsi");		//	push pointer to string on to stack		*
+																									//											*
+	//push format																					//											*
+	methodLinear->addInstrToTail("lea", stringName,"rdi");											//	push the format string on to stack		*
+																									//											*
+	//call printf																					//											*
+	methodLinear->addInstrToTail("xor", "rax", "rax");												//											*
+	methodLinear->addInstrToTail("call", "printf");													//	call printf								*
+																									//											*
+																									//											*
+	//restore rbp																					//											*
+	methodLinear->addInstrToTail("pop", "rbp");														//	pop into rbp to restore base pointer	*
+																									//											*
+	getMethodParamIntoRegister(*methodLinear,0,"r15", 1);											//											*
+	//boiler plate exit stuff																		//											*
+	atCalleeExit(*methodLinear);																	//	boiler plate exit						*
+																									//	return @ no return						*
+																									//*******************************************
 	return *methodLinear;
 }
 
@@ -830,24 +823,23 @@ InstructionList &makeInStringIR()
 {
 	InstructionList *methodLinear = new InstructionList;
 	methodLinear->addNewNode();
+	string bufSize = "4096";
 
-	methodLinear->addInstrToTail("mov", "rsp", "rbp");
+	atCalleeEntry(*methodLinear);
 	
 	//Making the new string
 	makeNew(*methodLinear, "String");
 
-	//calloc 16 bytes of memory for fgets										//	--PREPARE TO CALL CALLOC--							*
-	methodLinear->addInstrToTail("mov", "1", "rdi");							//	move 1 into rdi so we have 1 element				*
-	methodLinear->addInstrToTail("mov", "4096", "rsi");							//	move 16 into rsi so we have 16 elements				*
-	methodLinear->addInstrToTail("call", "calloc");								//	call calloc											*
+	//calloc bufSize bytes of memory for fgets									
+	callCalloc(*methodLinear, bufSize, "1");									//	call calloc 										*
 																				//														*
-																				//save memory pointer from calloc for later									//														*
+																				//save memory pointer from calloc for later				*
 	methodLinear->addInstrToTail("push", "rax");								//	save pointer to callod'c memory for later			*
 																				//														*
-																				//call fgets with stdin														//	--PREPARE TO CALL FGETS--							*
+																				//	--PREPARE TO CALL FGETS--							*
 	methodLinear->addInstrToTail("mov", "rax", "rdi");							//	move pointer to calloc'd memory into rdi			*
-	methodLinear->addInstrToTail("mov", "4096", "rsi");							//	move 16 into rsi to read 16 characters				*
-	methodLinear->addInstrToTail("mov", "stdin[rip]", "rdx");							//	move value for stdin into rdx						*
+	methodLinear->addInstrToTail("mov", bufSize, "rsi");						//	move 16 into rsi to read 16 characters				*
+	methodLinear->addInstrToTail("mov", "stdin[rip]", "rdx");					//	move value for stdin into rdx						*
 	methodLinear->addInstrToTail("call", "fgets");
 
 
@@ -858,14 +850,16 @@ InstructionList &makeInStringIR()
 	//return methods
 	methodLinear->addInstrToTail("pop", "rdi");
 	methodLinear->addInstrToTail("call", "free");
-	methodLinear->addInstrToTail("mov", "rbp", "rsp");
-	methodLinear->addInstrToTail("ret");
+
+	//return value already in r15 from making new string above
+	atCalleeExit(*methodLinear);
 
 	return *methodLinear;
 }
 
 /**
 * author: Benji
+* fixed: Matt
 */
 InstructionList &makeOutIntIR()
 {
@@ -912,6 +906,7 @@ InstructionList &makeInIntIR()
 	//sscanf(const char *str, const char *format, ...)
 
 	InstructionList *methodLinear = new InstructionList;
+	string bufSize = "16";
 
 	//add string to data table
 	size_t stringNum = globalStringTable.size();
@@ -920,22 +915,20 @@ InstructionList &makeInIntIR()
 																				//*******************************************************
 	methodLinear->addNewNode();													//*                     INFO PAGE                       *
 	//boiler plate entry stuff													//*******************************************************
-	methodLinear->addInstrToTail("mov", "rsp", "rbp");							//	boiler plate entry stuff							*
+	atCalleeEntry(*methodLinear);												//	boiler plate entry stuff							*
 																				//														*
 	//make new int																//														*
 	makeNew(*methodLinear, "Int");												//	make new integer									*
 																				//														*
-	//calloc 16 bytes of memory for fgets										//	--PREPARE TO CALL CALLOC--							*
-	methodLinear->addInstrToTail("mov", "1", "rdi");							//	move 1 into rdi so we have 1 element				*
-	methodLinear->addInstrToTail("mov", "16", "rsi");							//	move 16 into rsi so we have 16 elements				*
-	methodLinear->addInstrToTail("call", "calloc");								//	call calloc											*
+	//calloc 16 bytes of memory for fgets										//														*
+	callCalloc(*methodLinear, bufSize, "1"); 									//	call calloc											*
 																				//														*
 	//save memory pointer from calloc for later									//														*
 	methodLinear->addInstrToTail("push", "rax");								//	save pointer to callod'c memory for later			*
 																				//														*
 	//call fgets with stdin														//	--PREPARE TO CALL FGETS--							*
 	methodLinear->addInstrToTail("mov", "rax", "rdi");							//	move pointer to calloc'd memory into rdi			*
-	methodLinear->addInstrToTail("mov", "16", "rsi");							//	move 16 into rsi to read 16 characters				*
+	methodLinear->addInstrToTail("mov", bufSize, "rsi");						//	move bufSize into rsi to read bufSize characters	*
 	methodLinear->addInstrToTail("mov", "stdin[rip]", "rdx");					//	move value for stdin into rdx						*
 	methodLinear->addInstrToTail("call", "fgets");								//	call fgets											*
 																				//														*
@@ -956,11 +949,10 @@ InstructionList &makeInIntIR()
 	methodLinear->addInstrToTail("cmovl", "rsi", "rax");						//	if less than set to 0								*
 																				//														*
 	//move value into the int we made in the beginning							//														*
-	methodLinear->addInstrToTail("mov", "rax", "[r15+24]");						//	move the final value into the int we created		*
+	methodLinear->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");	//	move the final value into the int we created		*
 																				//														*
 	//boiler plate exit stuff													//														*
-	methodLinear->addInstrToTail("mov", "rbp", "rsp");							// boiler plate exit stuff								*
-	methodLinear->addInstrToTail("ret");										//	return @ r15										*								
+	atCalleeExit(*methodLinear);												// boiler plate exit stuff								*								
 																				//*******************************************************
 	return *methodLinear;
 }
@@ -986,8 +978,8 @@ InstructionList &makeLengthIR()
 
 	//put string pointer into rdi
 	getMethodParamIntoRegister(*methodLinear, 0, "r10", 0);
-	/*CHECK ME TO MAKE SURE I'M GETTING STRING RIGHT.*/
-	methodLinear->addInstrToTail("mov", "[r10+24]", "rdi");
+	
+	methodLinear->addInstrToTail("mov", "[r10+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rdi");
 
 	//clear flag
 	methodLinear->addInstrToTail("cld");
@@ -998,7 +990,7 @@ InstructionList &makeLengthIR()
 	methodLinear->addInstrToTail("repne", "scasb");
 
 	//String length is now in ecx - kinda. ecx == -strlen - 2
-	//SO not ecx and sub 1.
+	//So twos complement ecx and sub 1.
 	methodLinear->addInstrToTail("not","ecx");
 	methodLinear->addInstrToTail("dec", "ecx");
 
