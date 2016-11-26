@@ -85,7 +85,7 @@ InstructionList & makeGarbageCollectorIR()
 	getGreySet(*gcIR);
 
 	gcIR->addNewNode();
-	gcIR->addComment("Finds all grey nodes in the table, and puts them into a queue");
+	gcIR->addComment("Simple hash function");
 	hashFun(*gcIR);
 
 	return *gcIR;

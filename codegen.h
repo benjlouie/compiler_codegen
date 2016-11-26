@@ -9,6 +9,7 @@
 #include "../compiler_semantics/symbolTable.h"
 #include "linearIR.h"
 #include "vTable.h"
+#include "garbageCollector.h"
 
 extern int numErrors;
 extern int whileLabelCount;
