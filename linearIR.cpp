@@ -744,10 +744,11 @@ InstructionList &makeCopyIR()
 																					//															  *
 	//lookup size of the object being copied and move size into RCX					//	*This will be calling memcpy and calloc					  *
 	//during the call to callc rdx would be destroyed so I use r13 to hold for now	//															  *
-	getMethodParamIntoRegister(*methodLinear, 0, "rax", 4);							//	move int object from stack into rax						  *
+	methodLinear->addInstrToTail("mov", "[rbp+8]", "r13");							//	move int object from stack into rax						  * 
 	methodLinear->addInstrToTail("mov", "[r13+8]", "r13");							//	move int (size of object to make) value into r13		  *
+	methodLinear->addInstrToTail("imul", "8", "r13");
 																					//															  *
-	callCalloc(*methodLinear, "r13", "8");											//  call calloc with int * 8 so that we get 8*size in bytes	  *											
+	callCalloc(*methodLinear, "r13", "1");																					//  call calloc with int * 8 so that we get 8*size in bytes	  *											
 																					//	 --PREPARE FOR MEMCPY--									  *
 	methodLinear->addInstrToTail("mov", "rax", "rdi");								//	move pointer returned by calloc into rdi				  *
 																					//															  *
