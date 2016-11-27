@@ -1,10 +1,3 @@
-/**
- * @file garbage.c
- * @brief This was a test file to make sure my algorithm
- * and implementation was correct before I start to
- * convert this to assembly
- * @author Forest Thomas
- */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -26,9 +19,11 @@
 #define TAG_IND 0
 #define SIZE_IND 1
 
-/**
- * Simple node for a singly linked list
- */
+struct QNode {
+	struct Node *data;
+	struct QNode *next;
+};
+
 struct Node {
 	void *data;
 	struct Node *next;
@@ -37,35 +32,20 @@ struct Node {
 	//@TODO locations where this memory is referenced
 };
 
-/**
- * Hash map uses chaining and
- * pointers to sentinel nodes to do that
- * keeps track of num_elems and
- * table_size for load factor calculations
- */
 typedef struct hash_map {
 	size_t table_size;
 	size_t num_elems;
 	struct sent **table;
 } Map;
 
-/**
- * Sentinel node, it keeps track of the
- * head of the linked list and number
- * of elements in it
- */
 struct sent {
 	struct Node *head;
 	size_t num_elems;
 };
 
-/**
- * Simple queue implemented as
- * a linked list
- */
 typedef struct queue_t {
-	struct Node* head;
-	struct Node* tail;
+	struct QNode* head;
+	struct QNode* tail;
 	size_t num_elems;
 } Queue;
 
@@ -84,9 +64,12 @@ void freeSent(struct sent *s);
 
 struct Node *makeNode(void *ref, int type);
 Queue *makeQueue();
+struct QNode *makeQNode(struct Node *n);
 struct Node *pop(Queue *q);
 void push(Queue *q, struct Node *n);
 Queue *getGreySet(Map *m);
+
+void print_all(Map *m);
 
 /* registers and stack for testing purposes */
 void *rbx, *r12, *r13, *r14, *r15, *rdi, *rsi;
@@ -96,10 +79,6 @@ long top_of_stack = 31;
 /* test functions */
 void *make_new(long type, size_t, void *ref);
 
-/**
- * Main tests mallocing to different registers
- * and losing some references
- */
 int main(int argc, char** argv) {
 	Map *m = initGC(DEFAULT_TABLE_SIZE);
 	rbx = malloc(sizeof(int));
@@ -107,7 +86,6 @@ int main(int argc, char** argv) {
 	m = addRef(m, rbx, PRIMITIVE_TYPE);
 	r12 = malloc(32);
 	m = addRef(m, r12, PRIMITIVE_TYPE);
-	r12 = (void *) 0x38;
 	r13 = malloc(64);
 	m = addRef(m, r13, PRIMITIVE_TYPE);
 	r14 = make_new(STRING_TAG, 4, (void *) "hello");
@@ -117,16 +95,16 @@ int main(int argc, char** argv) {
 	rsi = (void *) 0x60;
 	rdi = NULL;
 	int i;
-	for (i = 0; i < 100000; i++) {
+	for (i = 0; i < 1000000; i++) {
 		m = addRef(m, malloc(64), PRIMITIVE_TYPE);
 	}
 	printf("%p: %d\n", rbx, *(int *)rbx);
 	printf("%p: %s\n", r14, (char *)(((long *) r14)[3]));
+	printf("end table size: %ld\n", m->table_size);
 	clearAll(m);
 	return 0;
 }
 
-/* test function to simulate making a new object */
 void *make_new(long type, size_t size, void *ref) {
 	long *object = calloc(size*8, 1);
 	object[TAG_IND] = type;
@@ -134,7 +112,7 @@ void *make_new(long type, size_t size, void *ref) {
 	object[3] = (long) ref;
 	return (void *) object;
 }
-/* Initializes the garbage collector with a given table size*/
+
 Map *initGC(size_t table_size) {
 	Map *m = calloc(sizeof(Map), 1);
 	m->table_size = table_size;
@@ -142,17 +120,10 @@ Map *initGC(size_t table_size) {
 	return m;
 }
 
-/* simple hash function */
 long hash(void *key, size_t table_size) {
 	return ((long) key >> 5) % table_size; //malloc is 32 bit aligned
 }
 
-/* Adds a reference to our map, type should be
- * eith PRIMITIVE_TYPE or OBJECT_TYPE
- * rebalances if load factor is above a given
- * threshold (LF_MAX is currently 75. so if 
- * load factor is 76% it will rebalance)
- */
 Map *addRef(Map *m, void *ref, int type) {
 	struct Node *n = makeNode(ref, type);
 	insert(m, n);
@@ -162,10 +133,6 @@ Map *addRef(Map *m, void *ref, int type) {
 	return m;
 }
 
-/**
- * Collects lost references and resizes
- * the table
- */
 Map *collectAndResize(Map *m) {
 	setGreys(m);
 	Queue *gs = getGreySet(m);
@@ -181,7 +148,7 @@ Map *collectAndResize(Map *m) {
 			continue; //ints and bools don't malloc memory
 		int i;
 		for (i = 3; i < object[SIZE_IND]; i++) {
-			nested_ref = get(m, (void *) &ref[i]);
+			nested_ref = get(m, (void *) &object[i]);
 			if (nested_ref == NULL || nested_ref->color != WHITE)
 				continue;
 			if (nested_ref->type == OBJECT_TYPE) {
@@ -193,18 +160,14 @@ Map *collectAndResize(Map *m) {
 		}
 	}
 	free(gs);
-
 	/* grey set is empty, anything white is unreachable */
 	int table_size = m->table_size * 2;
 	Map *new = initGC(table_size);
 	transfer(m, new);
-	clearAll(m); //m and everything in it can be safely reclaimed
+	clearAll(m);
 	return new;
 }
 
-/**
- * Transfers only non-white references to dest table
- */
 void transfer(Map *src, Map *dest) {
 	struct Node* tmp;
 	long i;
@@ -217,11 +180,6 @@ void transfer(Map *src, Map *dest) {
 	}
 }
 
-/**
- * racist function which will pull out a single
- * non white reference from the sentinel node
- * returns NULL if there are none
- */
 struct Node* removeNonWhite(struct sent *s) {
 	if (s->num_elems == 0)
 		return NULL;
@@ -240,14 +198,12 @@ struct Node* removeNonWhite(struct sent *s) {
 				s->num_elems--;
 				return tmp2;
 			}
+			tmp = tmp->next;
 		}
 	}
 	return NULL;
 }
 
-/**
- * Inserts a node into the hash table
- */
 void insert(Map *m, struct Node *n) {
 	long index = hash(n->data, m->table_size);
 	if (m->table[index] == NULL)
@@ -255,12 +211,9 @@ void insert(Map *m, struct Node *n) {
 	n->next = m->table[index]->head;
 	m->table[index]->head = n;
 	m->table[index]->num_elems++;
-	m->table->num_elems++;
+	m->num_elems++;
 }
 
-/**
- * Clears all memory associated with a hash table
- */
 void clearAll(Map *m) {
 	long i;
 	for (i = 0; i < m->table_size; i++) {
@@ -271,9 +224,6 @@ void clearAll(Map *m) {
 	free(m);
 }
 
-/**
- * frees all data associated with a sentinel node
- */
 void freeSent(struct sent *s) {
 	struct Node *n = s->head;
 	struct Node *tmp;
@@ -286,10 +236,6 @@ void freeSent(struct sent *s) {
 	free(s);
 }
 
-/**
- * returns a pointer to a node containing ref
- * returns NULL if no such node exists
- */
 struct Node *get(Map *m, void *ref) {
 	long index = hash(ref, m->table_size);
 	if (m->table[index] == NULL || m->table[index]->head == NULL)
@@ -303,42 +249,35 @@ struct Node *get(Map *m, void *ref) {
 	return NULL;
 }
 
-/**
- * pushes by doing a linked list tail insertion
- */
 void push(Queue *q, struct Node *n) {
+	struct QNode * qn = makeQNode(n);
 	if (q->tail == NULL) {
-		q->head = n;
-		q->tail = n;
+		q->head = qn;
+		q->tail = qn;
 	} else {
-		q->tail->next = n;
-		q->tail = n;
+		q->tail->next = qn;
+		q->tail = qn;
 	}
 	q->num_elems++;
 }
 
-/**
- * pops by removing from the head
- */
 struct Node *pop(Queue *q) {
 	struct Node *rv;
+	struct QNode *save;
+	save = q->head;
+	rv = save->data;
 	if (q->head == q->tail) {
-		rv = q->head;
 		q->head = NULL;
 		q->tail = NULL;
 	} else {
-		rv = q->head;
 		q->head = q->head->next;
 	}
 	q->num_elems--;
+	free(save);
 	return rv;
 	
 }
 
-/**
- * returns a queue with all currently grey nodes
- * in the map
- */
 Queue *getGreySet(Map *m) {
 	Queue *gs = calloc(sizeof(Queue), 1);
 	struct Node* tmp;
@@ -356,11 +295,6 @@ Queue *getGreySet(Map *m) {
 	return gs;
 }
 
-/**
- * Creates a new node, sets data to ref, type
- * to type (either OBJECT_TYPE or PRIMITIVE_TYPE
- * defaults the color to white
- */
 struct Node *makeNode(void *ref, int type) {
 	struct Node* n = malloc(sizeof(struct Node));
 	n->data = ref;
@@ -370,14 +304,6 @@ struct Node *makeNode(void *ref, int type) {
 	return n;
 }
 
-/**
- * Sets every memory address in the working set
- * to the color grey
- * only need to check the registers given, because
- * this function will be called after a call to
- * malloc/calloc and all other registers will be
- * trashed
- */
 void setGreys(Map *m) {
 	struct Node *tmp;
 	if ((tmp = get(m, rbx)) != NULL)
@@ -403,4 +329,29 @@ void setGreys(Map *m) {
 			tmp->color = GREY;
 		stk_ptr++;
 	}
+}
+
+void print_all(Map *m) {
+	long i;
+	for (i = 0; i < m->table_size; i++) {
+		printf("table[%5ld]: ", i);
+		if (m->table[i] == NULL)
+			printf("NULL\n");
+		else {
+			struct Node *tmp = m->table[i]->head;
+			long j;
+			for (j = 0; j < m->table[i]->num_elems; j++) {
+				printf("%p, ", tmp);
+				tmp = tmp->next;
+			}
+			printf("%p\n", tmp);
+		}
+	}
+}
+
+struct QNode *makeQNode(struct Node *n) {
+	struct QNode *qn = malloc(sizeof(struct QNode));
+	qn->data = n;
+	qn->next = NULL;
+	return qn;
 }

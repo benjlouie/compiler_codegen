@@ -23,6 +23,7 @@ void pop(InstructionList &gcIR);
 void push(InstructionList &gcIR);
 void getGreySet(InstructionList &gcIR);
 void hashFun(InstructionList &gcIR);
+void makeQNode(InstructionList &gcIR);
 
 InstructionList & makeGarbageCollectorIR()
 {
@@ -87,6 +88,10 @@ InstructionList & makeGarbageCollectorIR()
 	gcIR->addNewNode();
 	gcIR->addComment("Simple hash function");
 	hashFun(*gcIR);
+
+	gcIR->addNewNode();
+	gcIR->addComment("Makes a node for use in Queues");
+	makeQNode(*gcIR);
 
 	return *gcIR;
 }
@@ -567,6 +572,11 @@ void insert(InstructionList & gcIR)
 	/*move param_2 into r8->head*/
 	gcIR.addInstrToTail("mov", "rax", "[r8]");
 
+	/*increment m->table[i]->num_elems*/
+	gcIR.addInstrToTail("mov", "[r8+8]", "rcx");
+	gcIR.addInstrToTail("inc", "rcx");
+	gcIR.addInstrToTail("mov", "rcx",  "[r8+8]");
+
 	/*increment m->num_elems*/
 	gcIR.addInstrToTail("mov", PARAM_1, "rax");
 	gcIR.addInstrToTail("mov", "[rax+8]", "r8");
@@ -601,7 +611,8 @@ void get(InstructionList & gcIR)
 	/*if rax == 0 return*/
 	gcIR.addInstrToTail("cmp", "0", "rax");
 	gcIR.addInstrToTail("jne", "get_NOT_NULL");
-	atCalleeExit(gcIR);
+	gcIR.addInstrToTail("jmp", "get_WHILE_END");
+
 	gcIR.addInstrToTail("get_NOT_NULL:", "", "", InstructionList::INSTR_LABEL);
 
 	gcIR.addInstrToTail("mov", "[rax]", "rax");
@@ -906,15 +917,16 @@ void pop(InstructionList & gcIR)
 	gcIR.addInstrToTail("pop:", "", "", InstructionList::INSTR_LABEL);
 	atCalleeEntry(gcIR);
 
-	/*compare head and tail*/
+	/*save q->head */
 	gcIR.addInstrToTail("mov", PARAM_1, "rax");
-	gcIR.addInstrToTail("mov", "[rax]", "r8");
+	gcIR.addInstrToTail("mov", "[rax]", "rax");
+
+	/*compare head and tail*/
 	gcIR.addInstrToTail("mov", "[rax+8]", "rcx");
-	gcIR.addInstrToTail("cmp", "r8", "rcx");
+	gcIR.addInstrToTail("cmp", "rax", "rcx");
 	gcIR.addInstrToTail("jne", "pop_ELSE");
 
 	/*save head, then set head and tail to 0*/
-	gcIR.addInstrToTail("mov", "r8", "rax");
 	gcIR.addInstrToTail("xor", "r8", "r8");
 	gcIR.addInstrToTail("mov", PARAM_1, "rcx");
 	gcIR.addInstrToTail("mov", "r8", "[rcx]");
@@ -923,7 +935,6 @@ void pop(InstructionList & gcIR)
 
 	/*else*/
 	gcIR.addInstrToTail("pop_ELSE:", "", "", InstructionList::INSTR_LABEL);
-	gcIR.addInstrToTail("mov", "r8", "rax");
 	gcIR.addInstrToTail("mov", "[rax+8]", "r8");
 	gcIR.addInstrToTail("mov", PARAM_1, "rcx");
 	gcIR.addInstrToTail("mov", "r8", "[rcx]");
@@ -934,6 +945,15 @@ void pop(InstructionList & gcIR)
 	gcIR.addInstrToTail("mov", "[r8+16]", "rcx");
 	gcIR.addInstrToTail("dec", "rcx");
 	gcIR.addInstrToTail("mov", "rcx", "[r8+16]");
+
+	/*save [rax], call free(rax) */
+	gcIR.addInstrToTail("push", "rbp");
+	gcIR.addInstrToTail("push", "[rax]");
+	gcIR.addInstrToTail("mov", "rax", "rdi");
+	gcIR.addInstrToTail("call", "free");
+	gcIR.addInstrToTail("pop", "rax");
+	gcIR.addInstrToTail("pop", "rbp");
+
 	atCalleeExit(gcIR);
 }
 
@@ -945,8 +965,13 @@ void push(InstructionList & gcIR)
 	gcIR.addInstrToTail("push:", "", "", InstructionList::INSTR_LABEL);
 	atCalleeEntry(gcIR);
 
-	/*move param 2 into rcx*/
-	gcIR.addInstrToTail("mov", PARAM_2, "rcx");
+	/*call makeQNode(PARAM_2) move result into rcx*/
+	gcIR.addInstrToTail("push", "rbp");
+	gcIR.addInstrToTail("push", PARAM_2);
+	gcIR.addInstrToTail("call", "makeQNode");
+	gcIR.addInstrToTail("add", "8", "rsp");
+	gcIR.addInstrToTail("pop", "rbp");
+	gcIR.addInstrToTail("mov", "rax", "rcx");
 
 	/*compare q->tail to NULL*/
 	gcIR.addInstrToTail("mov", PARAM_1, "rax");
@@ -1072,6 +1097,28 @@ void hashFun(InstructionList & gcIR)
 	gcIR.addInstrToTail("mov", PARAM_2, "rcx");
 	gcIR.addInstrToTail("div", "rcx");
 	gcIR.addInstrToTail("mov", "rdx", "rax"); //div stores remainder in rdx (changed from Robert's code)
+
+	atCalleeExit(gcIR);
+}
+
+/**
+ * author: Forest
+ */
+void makeQNode(InstructionList &gcIR)
+{
+	gcIR.addInstrToTail("makeQNode:", "", "", InstructionList::INSTR_LABEL);
+	atCalleeEntry(gcIR);
+
+	/*malloc 16 bytes for node */
+	gcIR.addInstrToTail("push", "rbp");
+	gcIR.addInstrToTail("mov", "16", "rdi");
+	gcIR.addInstrToTail("pop", "rbp");
+
+	/*set data to param 1, next to 0 */
+	gcIR.addInstrToTail("mov", "[rbp+8]", "rcx");
+	gcIR.addInstrToTail("mov", "rcx", "[rax]");
+	gcIR.addInstrToTail("xor", "rcx", "rcx");
+	gcIR.addInstrToTail("mov", "rcx", "[rax+8]");
 
 	atCalleeExit(gcIR);
 }
