@@ -272,9 +272,8 @@ void collectAndResize(InstructionList & gcIR)
 
 	/*body of for loop*/
 	/*call get(m, object[i]*/
-	gcIR.addInstrToTail("sal", "8", "rcx"); //i *= 8
 	gcIR.addInstrToTail("push", "rbp");
-	gcIR.addInstrToTail("push", "[rdx+rcx]");
+	gcIR.addInstrToTail("push", "[rdx+rcx*8]");
 	gcIR.addInstrToTail("push", PARAM_1);
 	gcIR.addInstrToTail("call", "get");
 	gcIR.addInstrToTail("add", "16", "rsp");
@@ -957,6 +956,7 @@ void push(InstructionList & gcIR)
 
 	/*move n to q->head */
 	gcIR.addInstrToTail("mov", "rcx", "[rax]");
+	gcIR.addInstrToTail("jmp", "push_ENDIF");
 
 	gcIR.addInstrToTail("push_ELSE:", "", "", InstructionList::INSTR_LABEL);
 	gcIR.addInstrToTail("mov", "rcx", "[r8+8]");
