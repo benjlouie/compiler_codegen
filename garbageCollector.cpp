@@ -442,11 +442,11 @@ void transfer(InstructionList & gcIR)
 	/*rax = 0, r8 = PARAM_1->table_size*/
 	gcIR.addInstrToTail("xor", "rax", "rax");
 	gcIR.addInstrToTail("mov", PARAM_1, "r8");
-	gcIR.addInstrToTail("mov", "[r8+16]", "r8");
+	gcIR.addInstrToTail("mov", "[r8]", "r8");
 
 	/*start of for loop */
 	gcIR.addInstrToTail("transfer_CMP:", "", "", InstructionList::INSTR_LABEL);
-	gcIR.addInstrToTail("cmp", "rbx", "rax");
+	gcIR.addInstrToTail("cmp", "r8", "rax");
 	gcIR.addInstrToTail("jge", "transfer_END_FUNCT");
 
 	/*move src->table[rax] into rcx */
@@ -721,7 +721,13 @@ void setGreys(InstructionList & gcIR)
 	gcIR.addInstrToTail("add", "16", "rsp");
 	gcIR.addInstrToTail("pop", "rbp");
 
+	/*compare rax, 0 assign color to grey */
+	gcIR.addInstrToTail("cmp", "0", "rax");
+	gcIR.addInstrToTail("je", "setGreys_WHILE_UPDATE");
+	gcIR.addInstrToTail("mov", "QWORD PTR " GREY, "[rax+24]");
+
 	/*add 8 to r8 to continue while loop*/
+	gcIR.addInstrToTail("setGreys_WHILE_UPDATE:", "", "", InstructionList::INSTR_LABEL);
 	gcIR.addInstrToTail("pop", "r8");
 	gcIR.addInstrToTail("add", "8", "r8");
 	gcIR.addInstrToTail("pop", "rcx");
@@ -777,7 +783,7 @@ void removeNonWhite(InstructionList & gcIR)
 	gcIR.addInstrToTail("je", "removeNonWhite_WHILE_END");
 
 	/*while body*/
-	gcIR.addInstrToTail("mov", "[rax+24]", "r8");
+	gcIR.addInstrToTail("mov", "[r8+24]", "r8");
 	gcIR.addInstrToTail("cmp", WHITE, "r8");
 	gcIR.addInstrToTail("je", "removeNonWhite_ENDIF");
 
@@ -985,7 +991,7 @@ void getGreySet(InstructionList & gcIR)
 	/*call calloc(24)*/
 	gcIR.addInstrToTail("push", "rbp");
 	gcIR.addInstrToTail("mov", Q_SIZE, "rdi");
-	gcIR.addInstrToTail("mov", "0", "rsi");
+	gcIR.addInstrToTail("mov", "1", "rsi");
 	gcIR.addInstrToTail("call", "calloc");
 	gcIR.addInstrToTail("pop", "rbp");
 	gcIR.addInstrToTail("mov", "rax", "[rbp-8]");
@@ -1007,8 +1013,8 @@ void getGreySet(InstructionList & gcIR)
 	gcIR.addInstrToTail("cmp", "0", "rax");
 	gcIR.addInstrToTail("je", "getGreySet_FOR_UPDATE");
 
-	/*move head into r8*/
-	gcIR.addInstrToTail("mov", "[rax]", "r8");
+	/*move head into rax*/
+	gcIR.addInstrToTail("mov", "[rax]", "rax");
 
 	/*while loop start*/
 	gcIR.addInstrToTail("getGreySet_WHILE:", "", "", InstructionList::INSTR_LABEL);
