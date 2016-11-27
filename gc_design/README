@@ -52,3 +52,11 @@ associated with that table.
 
 On exit, we free everything in our table,
 then the table itself.
+
+-------------------------------------------------
+This algorithm was implemented in garbage.c
+There were errors when translating it to
+assembly, and thus does not work in the
+full compiler. It will still allow for
+keeping track of all memory addresses, and
+freeing everything on the program exit.
