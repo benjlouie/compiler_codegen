@@ -600,8 +600,8 @@ InstructionList &makeStringsIR()
 	}
 
 	/*add globals for garbage collection*/
-	stringIR->addInstrToTail("gc", "0", "DQ");
-	stringIR->addInstrToTail("tos", "0", "DQ");
+	stringIR->addInstrToTail(".comm", "gc,8,8");
+	stringIR->addInstrToTail(".comm", "tos,8,8");
 
 	return *stringIR;
 }
@@ -1220,9 +1220,9 @@ void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, stri
 
 	/*keep track of newly allocated memory rax should still contain memory alloc'd afterwards*/
 	methodLinear.addInstrToTail("push", "rbp");
-	methodLinear.addInstrToTail("push", "gc[rip]");
-	methodLinear.addInstrToTail("push", "eax");
 	methodLinear.addInstrToTail("push", type);
+	methodLinear.addInstrToTail("push", "rax");
+	methodLinear.addInstrToTail("push", "gc[rip]");
 	methodLinear.addInstrToTail("call", "addRef");
 	methodLinear.addInstrToTail("mov", "rax", "gc[rip]");
 	methodLinear.addInstrToTail("add", "8", "rsp");
