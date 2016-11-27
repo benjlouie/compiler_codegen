@@ -640,7 +640,7 @@ InstructionList &makeTypeNameIR()
 	makeNew(*methodLinear, "String");
 	
 	//Getting the vtable value for self object
-	methodLinear->addInstrToTail("mov", "[rbp + 8]", "rdi");
+	getMethodParamIntoRegister(*methodLinear, 0, "rax", 1);	
 	methodLinear->addInstrToTail("mov", "[rdi+16]", "rax");
 	methodLinear->addInstrToTail("mov", "[rax]", "rax");
 	methodLinear->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
@@ -665,9 +665,9 @@ InstructionList &makeLThandler() {
 	makeNew(*methodLinear, "Bool");																			//		make new boolean object					*
 																											//												*
 	//mov values to compare into rax and rbx																//												*
-	methodLinear->addInstrToTail("mov", "[rbp+8]", "rax");													//		move first int pointer into rax			*
+	getMethodParamIntoRegister(*methodLinear, 0, "rax", 1);														//		move first int pointer into rax			*
 	methodLinear->addInstrToTail("mov", "[rax+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rax");				//		move second int value into rax			*
-	methodLinear->addInstrToTail("mov", "[rbp+16]", "rbx");													//		move second int pointer into rbx		*
+	getMethodParamIntoRegister(*methodLinear, 1, "rbx", 1);													//		move second int pointer into rbx		*
 	methodLinear->addInstrToTail("mov", "[rbx+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rbx");				//		move second int value into rbx			*
 																											//												*
 	//compare the values																					//												*
