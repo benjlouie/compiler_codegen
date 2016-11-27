@@ -697,15 +697,15 @@ InstructionList &makeLTEhandler() {
 	methodLinear->addComment("LT Handler: Checking if two values are LTE");									//************************************************
 																											//*					INFO PAGE                    *
 	//entrance stuff																						//************************************************
-	atCalleeEntry(*methodLinear);														//		boiler plate entry stuff				 *
+	atCalleeEntry(*methodLinear);																			//		boiler plate entry stuff				 *
 																											//												 *
 	//	make a new bool																						//												 *
 	makeNew(*methodLinear, "Bool");																			//		make new boolean object					 *
 																											//												 *
-	//	mov values to compare into rax and rbx																//												 *
-	getMethodParamIntoRegister(*methodLinear, 8, "rax", 4);													//		move first int pointer into rax			 *
+	//	mov self and first param values to compare into rax and rbx											//												 *
+	getMethodParamIntoRegister(*methodLinear, 0, "rax", 4);													//		move first int pointer into rax			 *
 	methodLinear->addInstrToTail("mov", "[rax+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rax");				//		move first int value into rax			 *
-	getMethodParamIntoRegister(*methodLinear, 8, "rbx", 4);													//		move second int pointer into rbx		 *
+	getMethodParamIntoRegister(*methodLinear, 1, "rbx", 4);													//		move second int pointer into rbx		 *
 	methodLinear->addInstrToTail("mov", "[rbx+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rbx");				//		move second int value into rbx			 *
 																											//												 *
 	//	compare the values																					//												 *
@@ -744,10 +744,11 @@ InstructionList &makeCopyIR()
 																					//															  *
 	//lookup size of the object being copied and move size into RCX					//	*This will be calling memcpy and calloc					  *
 	//during the call to callc rdx would be destroyed so I use r13 to hold for now	//															  *
-	getMethodParamIntoRegister(*methodLinear, 0, "rax", 4);							//	move int object from stack into rax						  *
+	methodLinear->addInstrToTail("mov", "[rbp+8]", "r13");							//	move int object from stack into rax						  * 
 	methodLinear->addInstrToTail("mov", "[r13+8]", "r13");							//	move int (size of object to make) value into r13		  *
+	methodLinear->addInstrToTail("imul", "8", "r13");
 																					//															  *
-	callCalloc(*methodLinear, "r13", "8");											//  call calloc with int * 8 so that we get 8*size in bytes	  *											
+	callCalloc(*methodLinear, "r13", "1");																					//  call calloc with int * 8 so that we get 8*size in bytes	  *											
 																					//	 --PREPARE FOR MEMCPY--									  *
 	methodLinear->addInstrToTail("mov", "rax", "rdi");								//	move pointer returned by calloc into rdi				  *
 																					//															  *
