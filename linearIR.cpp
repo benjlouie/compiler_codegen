@@ -313,6 +313,7 @@ InstructionList &makeEntryPointIR()
 InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *attributes)
 {
 	InstructionList *classLinear = new InstructionList;
+	static int NOTNULLCOUNTER = 0;
 	string className = ((Node *)cls->getChildren()[0])->value;
 	//handle return address
 	classLinear->addNewNode();
@@ -321,6 +322,13 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 	atCalleeEntry(*classLinear);
 
 	//TODO make space for locals
+	//set up space for local vars
+	//std::string methodName = ((Node *)feature->getChildren()[0])->value;
+	//globalSymTable->enterScope(methodName);
+	int space = globalSymTable->cur->numLocals * 8;
+	//globalSymTable->leaveScope();
+	classLinear->addInstrToTail("sub", std::to_string(space), "rsp");
+
 
 	int tag = globalSymTable->getClassTag(className);
 
@@ -367,8 +375,34 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 				}
 			}
 			else {
+				
 				makeExprIR_recursive(*classLinear, expr);
 				classLinear->addInstrToTail("pop", "rax");
+
+				if (varType == "Int" || varType == "String" || varType == "Bool") {
+					classLinear->addInstrToTail("cmp", "0", "rax");
+					classLinear->addInstrToTail("jne", "_" + to_string(NOTNULLCOUNTER) +"_CLASS_" + name + "_"+ varName + "_NOTVOIDSKIP");
+					classLinear->addInstrToTail("push", "rbp");
+					classLinear->addInstrToTail("push", "rax");
+					classLinear->addInstrToTail("push", "rbx");
+					classLinear->addInstrToTail("push", "rax");
+					if(varType == "Int"){
+						classLinear->addInstrToTail("call", "Int..new");
+					}
+					else if(varType == "String"){
+						classLinear->addInstrToTail("call", "String..new");
+					}
+					else if(varType == "Bool"){
+						classLinear->addInstrToTail("call", "Bool..new");
+					}
+					classLinear->addInstrToTail("add", "8", "rsp");
+					classLinear->addInstrToTail("pop", "rbx");	
+					classLinear->addInstrToTail("pop", "rax");
+					classLinear->addInstrToTail("pop", "rbp");
+					classLinear->addInstrToTail("mov", "r15", "rax");
+					classLinear->addInstrToTail("_" + to_string(NOTNULLCOUNTER) +"_CLASS_" + name + "_"+ varName + "_NOTVOIDSKIP:", "", "",InstructionList::INSTR_LABEL);
+					NOTNULLCOUNTER++;
+				}
 			}
 
 			classLinear->addInstrToTail("mov", "[rbp + 8]", "rbx"); //move self object to rbx
@@ -836,32 +870,34 @@ InstructionList &makeInStringIR()
 	methodLinear->addNewNode();
 	string bufSize = "4096";
 
+
+	size_t stringNum = globalStringTable.size();
+	globalStringTable[stringNum] = "%[^\\t\\n]";
+	string stringName = ".string" + std::to_string(stringNum);
+
 	atCalleeEntry(*methodLinear);
 	
-	//Making the new string
-	makeNew(*methodLinear, "String");
-
-	//calloc bufSize bytes of memory for fgets									
-	callCalloc(*methodLinear, bufSize, "1", PRIMITIVE_TYPE);					//	call calloc 										*
-
-																				//														*
-																				//save memory pointer from calloc for later				*
-	methodLinear->addInstrToTail("push", "rax");								//	save pointer to callod'c memory for later			*
-																				//														*
-																				//	--PREPARE TO CALL FGETS--							*
-	methodLinear->addInstrToTail("mov", "rax", "rdi");							//	move pointer to calloc'd memory into rdi			*
-	methodLinear->addInstrToTail("mov", bufSize, "rsi");						//	move 16 into rsi to read 16 characters				*
-	methodLinear->addInstrToTail("mov", "stdin[rip]", "rdx");					//	move value for stdin into rdx						*
+	methodLinear->addInstrToTail("push", "rbp");
+	methodLinear->addInstrToTail("push", "rax");
+	methodLinear->addInstrToTail("call", "String..new");	
+	methodLinear->addInstrToTail("add", "8","rsp");
+	methodLinear->addInstrToTail("pop", "rbp");
+	callCalloc(*methodLinear,"1",bufSize, PRIMITIVE_TYPE);
+	methodLinear->addInstrToTail("push", "rax");
+	methodLinear->addInstrToTail("mov", "rax","rdi");
+	methodLinear->addInstrToTail("mov", bufSize,"rsi");
+	methodLinear->addInstrToTail("mov", "stdin[rip]","rdx");
 	methodLinear->addInstrToTail("call", "fgets");
-
-
-	
+	methodLinear->addInstrToTail("pop", "rdi");
+	methodLinear->addInstrToTail("mov", "0","rax");
+	methodLinear->addInstrToTail("push", "rdi");
+	methodLinear->addInstrToTail("mov", "[rsp]","rdx");
+	methodLinear->addInstrToTail("lea", ".string" + std::to_string(stringNum),"rsi");
+	methodLinear->addInstrToTail("call", "sscanf");
+	methodLinear->addInstrToTail("pop", "rax");
 	//call to fgets
 	methodLinear->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 
-	//return methods
-	//methodLinear->addInstrToTail("pop", "rdi");
-	//methodLinear->addInstrToTail("call", "free");
 
 	//return value already in r15 from making new string above
 	atCalleeExit(*methodLinear);
