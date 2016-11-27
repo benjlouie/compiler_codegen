@@ -556,7 +556,7 @@ void insert(InstructionList & gcIR)
 	gcIR.addInstrToTail("mov", PARAM_1, "rcx");
 	gcIR.addInstrToTail("mov", "[rcx+16]", "rcx");
 	gcIR.addInstrToTail("pop", "r8");
-	gcIR.addInstrToTail("mov", "rax", "[rcx+r8]");
+	gcIR.addInstrToTail("mov", "rax", "[rcx+r8*8]");
 	gcIR.addInstrToTail("mov", "rax", "r8");
 
 	/*r8 holds m->table[i], move r8->head into param_2->next*/
