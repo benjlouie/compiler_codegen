@@ -394,7 +394,7 @@ void clearAll(InstructionList & gcIR)
 	/*check if m->table[i] is NULL*/
 	gcIR.addInstrToTail("mov", PARAM_1, "rax");
 	gcIR.addInstrToTail("mov", "[rax+16]", "rax");
-	gcIR.addInstrToTail("mov", "[rax+rcx]", "rax");
+	gcIR.addInstrToTail("mov", "[rax+rcx*8]", "rax");
 	gcIR.addInstrToTail("cmp", "0", "rax");
 	gcIR.addInstrToTail("je", "clearAll_ENDIF");
 	
@@ -452,7 +452,7 @@ void transfer(InstructionList & gcIR)
 	/*move src->table[rax] into rcx */
 	gcIR.addInstrToTail("mov", PARAM_1, "rcx");
 	gcIR.addInstrToTail("mov", "[rcx+16]", "rcx");
-	gcIR.addInstrToTail("mov", "[rcx+rax]", "rcx");
+	gcIR.addInstrToTail("mov", "[rcx+rax*8]", "rcx");
 	
 	/*check if null*/
 	gcIR.addInstrToTail("cmp", "0", "rcx");
@@ -539,7 +539,7 @@ void insert(InstructionList & gcIR)
 	/*move m->table[hash] into r8*/
 	gcIR.addInstrToTail("mov", PARAM_1, "r8");
 	gcIR.addInstrToTail("mov", "[r8+16]", "r8");
-	gcIR.addInstrToTail("mov", "[r8+rax]", "r8");
+	gcIR.addInstrToTail("mov", "[r8+rax*8]", "r8");
 
 	/*check for null */
 	gcIR.addInstrToTail("cmp", "0", "r8");
@@ -596,7 +596,8 @@ void get(InstructionList & gcIR)
 
 	/*mov m->table[hash] rax*/
 	gcIR.addInstrToTail("mov", PARAM_1, "r8");
-	gcIR.addInstrToTail("mov", "[r8+16]", "rax");
+	gcIR.addInstrToTail("mov", "[r8+16]", "r8");
+	gcIR.addInstrToTail("mov", "[r8+rax*8]", "rax");
 
 	/*if rax == 0 return*/
 	gcIR.addInstrToTail("cmp", "0", "rax");
@@ -1002,7 +1003,7 @@ void getGreySet(InstructionList & gcIR)
 	/*get m->table[i]*/
 	gcIR.addInstrToTail("mov", PARAM_1, "rax");
 	gcIR.addInstrToTail("mov", "[rax+16]", "rax");
-	gcIR.addInstrToTail("mov", "[rax+rcx]", "rax");
+	gcIR.addInstrToTail("mov", "[rax+rcx*8]", "rax");
 	gcIR.addInstrToTail("cmp", "0", "rax");
 	gcIR.addInstrToTail("je", "getGreySet_FOR_UPDATE");
 
