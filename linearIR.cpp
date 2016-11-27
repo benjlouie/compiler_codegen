@@ -694,7 +694,7 @@ InstructionList &makeLTEhandler() {
 
 	InstructionList *methodLinear = new InstructionList;
 	methodLinear->addNewNode();
-	methodLinear->addComment("LT Handler: Checking if two values are LTE");									//************************************************
+	methodLinear->addComment("LTE Handler: Checking if two values are LTE");									//************************************************
 																											//*					INFO PAGE                    *
 	//entrance stuff																						//************************************************
 	atCalleeEntry(*methodLinear);																			//		boiler plate entry stuff				 *
@@ -703,9 +703,9 @@ InstructionList &makeLTEhandler() {
 	makeNew(*methodLinear, "Bool");																			//		make new boolean object					 *
 																											//												 *
 	//	mov self and first param values to compare into rax and rbx											//												 *
-	getMethodParamIntoRegister(*methodLinear, 0, "rax", 4);													//		move first int pointer into rax			 *
+	getMethodParamIntoRegister(*methodLinear, 0, "rax", 1);													//		move first int pointer into rax			 *
 	methodLinear->addInstrToTail("mov", "[rax+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rax");				//		move first int value into rax			 *
-	getMethodParamIntoRegister(*methodLinear, 1, "rbx", 4);													//		move second int pointer into rbx		 *
+	getMethodParamIntoRegister(*methodLinear, 1, "rbx", 1);													//		move second int pointer into rbx		 *
 	methodLinear->addInstrToTail("mov", "[rbx+" + to_string(DEFAULT_VAR_OFFSET) + "]", "rbx");				//		move second int value into rbx			 *
 																											//												 *
 	//	compare the values																					//												 *
@@ -748,7 +748,7 @@ InstructionList &makeCopyIR()
 	methodLinear->addInstrToTail("mov", "[r13+8]", "r13");							//	move int (size of object to make) value into r13		  *
 	methodLinear->addInstrToTail("imul", "8", "r13");
 																					//															  *
-	callCalloc(*methodLinear, "r13", "1");																					//  call calloc with int * 8 so that we get 8*size in bytes	  *											
+	callCalloc(*methodLinear, "1", "r13");																					//  call calloc with int * 8 so that we get 8*size in bytes	  *											
 																					//	 --PREPARE FOR MEMCPY--									  *
 	methodLinear->addInstrToTail("mov", "rax", "rdi");								//	move pointer returned by calloc into rdi				  *
 																					//															  *
@@ -832,7 +832,7 @@ InstructionList &makeInStringIR()
 	makeNew(*methodLinear, "String");
 
 	//calloc bufSize bytes of memory for fgets									
-	callCalloc(*methodLinear, bufSize, "1");									//	call calloc 										*
+	callCalloc(*methodLinear,"1", bufSize);									//	call calloc 										*
 																				//														*
 																				//save memory pointer from calloc for later				*
 	methodLinear->addInstrToTail("push", "rax");								//	save pointer to callod'c memory for later			*
@@ -922,7 +922,7 @@ InstructionList &makeInIntIR()
 	makeNew(*methodLinear, "Int");												//	make new integer									*
 																				//														*
 	//calloc 16 bytes of memory for fgets										//														*
-	callCalloc(*methodLinear, bufSize, "1"); 									//	call calloc											*
+	callCalloc(*methodLinear, "1", bufSize); 									//	call calloc											*
 																				//														*
 	//save memory pointer from calloc for later									//														*
 	methodLinear->addInstrToTail("push", "rax");								//	save pointer to callod'c memory for later			*
