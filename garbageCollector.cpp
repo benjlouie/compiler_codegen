@@ -140,6 +140,10 @@ void initGC(InstructionList & gcIR)
 void addRef(InstructionList & gcIR)
 {
 	gcIR.addInstrToTail("addRef:", "", "", InstructionList::INSTR_LABEL);
+
+	/*not enough time to debug */
+	gcIR.addInstrToTail("ret");
+
 	atCalleeEntry(gcIR);
 
 	/*call makeNode(PARAM_2, PARAM_3) */
@@ -471,6 +475,7 @@ void transfer(InstructionList & gcIR)
 	gcIR.addInstrToTail("push", "rbp");
 	gcIR.addInstrToTail("push", "rax");
 	gcIR.addInstrToTail("push", "r8");
+	gcIR.addInstrToTail("push", "rcx");
 
 	/*call removeNonWhite(rcx), with rcx = src->table[rax]*/
 	gcIR.addInstrToTail("push", "rcx");
@@ -479,6 +484,7 @@ void transfer(InstructionList & gcIR)
 	gcIR.addInstrToTail("add", "8", "rsp");
 
 	/*restore r8, rax, rbp */
+	gcIR.addInstrToTail("pop", "rcx");
 	gcIR.addInstrToTail("pop", "r8");
 	gcIR.addInstrToTail("pop", "rax");
 	gcIR.addInstrToTail("pop", "rbp");
@@ -492,6 +498,7 @@ void transfer(InstructionList & gcIR)
 	gcIR.addInstrToTail("push", "rbp");
 	gcIR.addInstrToTail("push", "rax");
 	gcIR.addInstrToTail("push", "r8");
+	gcIR.addInstrToTail("push", "rcx");
 
 	gcIR.addInstrToTail("push", "rdx");
 	gcIR.addInstrToTail("push", PARAM_2);
@@ -499,6 +506,7 @@ void transfer(InstructionList & gcIR)
 	gcIR.addInstrToTail("add", "16", "rsp");
 	
 	/*restore rbp, rax, r8 */
+	gcIR.addInstrToTail("pop", "rcx");
 	gcIR.addInstrToTail("pop", "r8");
 	gcIR.addInstrToTail("pop", "rax");
 	gcIR.addInstrToTail("pop", "rbp");
@@ -776,6 +784,10 @@ void removeNonWhite(InstructionList & gcIR)
 	gcIR.addInstrToTail("mov", "[r8+8]", "rcx");
 	gcIR.addInstrToTail("dec", "rcx");
 	gcIR.addInstrToTail("mov", "rcx", "[r8+8]");
+
+	/*set rv->next = 0 */
+	gcIR.addInstrToTail("xor", "rcx", "rcx");
+	gcIR.addInstrToTail("mov", "rcx", "[r8+8]");
 	
 	/*return*/
 	gcIR.addInstrToTail("jmp", "removeNonWhite_EXIT");
@@ -809,6 +821,10 @@ void removeNonWhite(InstructionList & gcIR)
 	gcIR.addInstrToTail("mov", PARAM_1, "r8");
 	gcIR.addInstrToTail("mov", "[r8+8]", "rcx");
 	gcIR.addInstrToTail("dec", "rcx");
+	gcIR.addInstrToTail("mov", "rcx", "[r8+8]");
+
+	/*set rv->next = 0 */
+	gcIR.addInstrToTail("xor", "rcx", "rcx");
 	gcIR.addInstrToTail("mov", "rcx", "[r8+8]");
 	gcIR.addInstrToTail("jmp", "removeNonWhite_EXIT");
 
@@ -922,7 +938,8 @@ void pop(InstructionList & gcIR)
 	gcIR.addInstrToTail("mov", "[rax]", "rax");
 
 	/*compare head and tail*/
-	gcIR.addInstrToTail("mov", "[rax+8]", "rcx");
+	gcIR.addInstrToTail("mov", PARAM_1, "rcx");
+	gcIR.addInstrToTail("mov", "[rcx+8]", "rcx");
 	gcIR.addInstrToTail("cmp", "rax", "rcx");
 	gcIR.addInstrToTail("jne", "pop_ELSE");
 
