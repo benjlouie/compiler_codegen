@@ -1,5 +1,9 @@
 #include "codegen.h"
 
+/*
+ * @Author: Everyone
+ * Calls everything in the correct ways
+ */
 void code(fstream &outfile)
 {
 	//generate offsets for symbolTable variables

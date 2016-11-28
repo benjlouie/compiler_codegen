@@ -10,6 +10,7 @@ vTable::vTable() {}
 
 /**
  * authors: Forest, Benji
+ * Makes sure there's a method in the vTable.
  */
 int inVtable(string method, vector<string> inher) {
 	string meth;
@@ -23,6 +24,7 @@ int inVtable(string method, vector<string> inher) {
 
 /**
  * authors: Forest, Benji
+ * Builds vTable via depth first search
  */
 void dfs_buildVTable(vector<string> curEntry, string clsName) {
 	if (globalTypeList.count(clsName) == 0)
@@ -58,6 +60,7 @@ void dfs_buildVTable(vector<string> curEntry, string clsName) {
 }
 /**
  * authors: Forest, Benji
+ * Builds the vTable
  */
 void buildVTable() {
 	globalVTable = new vTable;
@@ -68,8 +71,10 @@ void buildVTable() {
 
 }
 
-//Author: Forest
-//Gives the offset, in number of entries, a method is from the base of the classes vtable entry
+/*
+ * Author: Forest
+ * Gives the offset, in number of entries, a method is from the base of the classes vtable entry
+ */
 int vTable::getOffset(string cls, string method_name)
 {
 	vector<string> methods = vtable[cls];
