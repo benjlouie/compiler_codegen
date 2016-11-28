@@ -99,6 +99,7 @@ InstructionList & makeGarbageCollectorIR()
 /**
 *  author: Forest
 *  assembly: Robert
+*  This function intializes an empty garbage collector.
 */
 void initGC(InstructionList & gcIR)
 {
@@ -136,13 +137,13 @@ void initGC(InstructionList & gcIR)
 /**
 *  author: Forest
 *  assembly: Robert
+*  This function is stuffed inside our helper function for calloc. Every time calloc is called a reference is added 
+*  to the garbage collector. This is how we keep track of all our calls to calloc.
 */
 void addRef(InstructionList & gcIR)
 {
 	gcIR.addInstrToTail("addRef:", "", "", InstructionList::INSTR_LABEL);
 
-	/*not enough time to debug */
-	//gcIR.addInstrToTail("ret");
 
 	atCalleeEntry(gcIR);
 
@@ -195,6 +196,9 @@ void addRef(InstructionList & gcIR)
 
 /**
 * Author: Forest
+* This function is not used because we were never able debug is properly. This function would allow the garbage collector to be called during runtime.
+* This function will search through the list of calloc references and remove any node which is unused in the rest of the program. In theory this would 
+* allow us to do garbage collection during runtime safely but we were never able to get this to work properly.
 */
 void collectAndResize(InstructionList & gcIR)
 {
@@ -383,6 +387,7 @@ void collectAndResize(InstructionList & gcIR)
 
 /**
 *  author: Forest
+*  This function simply frees all the references in the garbage collector along with all overhead before finally freeing the garbage collector itself.
 */
 void clearAll(InstructionList & gcIR)
 {
@@ -441,6 +446,8 @@ void clearAll(InstructionList & gcIR)
 /**
 *  author: Forest
 *  assembly: Robert
+*  This function is used along side collectAndResize. This function allows us to move nodes from the "old" garbage collector to the "new" one. This is
+*  how we would be safely freeing only the unused nodes when calling the garbage collector at run time.
 */
 void transfer(InstructionList & gcIR)
 {
@@ -527,6 +534,7 @@ void transfer(InstructionList & gcIR)
 /**
 *  author: Forest
 *  assembly: Robert
+*  This function adds a new reference to the garbage collector. This is what calculates the hash for where to store the reference and handles chaining.
 */
 void insert(InstructionList & gcIR)
 {
@@ -596,6 +604,7 @@ void insert(InstructionList & gcIR)
 
 /**
 *  author: Forest
+*  This function gets a given node from the map. If there is no node with that memory address it returns NULL.
 */
 void get(InstructionList & gcIR)
 {
@@ -646,6 +655,7 @@ void get(InstructionList & gcIR)
 
 /**
 *  author: Forest
+*  This function finds all immediately reachable memory addresses and sets their color to gray.
 */
 void setGreys(InstructionList & gcIR)
 {
@@ -757,6 +767,7 @@ void setGreys(InstructionList & gcIR)
 
 /**
 *  author: Forest
+*  This function removes a single non white node from a given sentinel node.
 */
 void removeNonWhite(InstructionList & gcIR)
 {
@@ -842,6 +853,7 @@ void removeNonWhite(InstructionList & gcIR)
 
 /**
 *  author: Forest
+*  This function frees the sentinel node and the memory it is keeping track of.
 */
 void freeSent(InstructionList & gcIR)
 {
@@ -894,6 +906,7 @@ void freeSent(InstructionList & gcIR)
 
 /**
 *  author: Forest
+*  This function makes a new node setting tis default color to white.
 */
 void makeNode(InstructionList & gcIR)
 {
@@ -927,6 +940,7 @@ void makeNode(InstructionList & gcIR)
 
 /**
 *  author: Forest
+*  This function pops a node from the queue.
 */
 void pop(InstructionList & gcIR)
 {
@@ -976,6 +990,7 @@ void pop(InstructionList & gcIR)
 
 /**
 *  author: Forest
+*  This function pushes a node to the queue.
 */
 void push(InstructionList & gcIR)
 {
@@ -1019,6 +1034,7 @@ void push(InstructionList & gcIR)
 
 /**
 *  author: Forest
+*  This function creates a queue of every gray set in the garbage collector.
 */
 void getGreySet(InstructionList & gcIR)
 {
@@ -1100,6 +1116,7 @@ void getGreySet(InstructionList & gcIR)
 /**
 *  author: Forest
 *  assembly: Robert
+*  This is the function that computes the simple hash used for our garbage collector map.
 */
 void hashFun(InstructionList & gcIR)
 {
@@ -1120,6 +1137,7 @@ void hashFun(InstructionList & gcIR)
 
 /**
  * author: Forest
+ * This function makes a new node that is used with the queue.
  */
 void makeQNode(InstructionList &gcIR)
 {
