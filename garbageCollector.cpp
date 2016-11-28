@@ -142,7 +142,7 @@ void addRef(InstructionList & gcIR)
 	gcIR.addInstrToTail("addRef:", "", "", InstructionList::INSTR_LABEL);
 
 	/*not enough time to debug */
-	gcIR.addInstrToTail("ret");
+	//gcIR.addInstrToTail("ret");
 
 	atCalleeEntry(gcIR);
 
@@ -182,10 +182,10 @@ void addRef(InstructionList & gcIR)
 	/* call collectAndResize(PARAM_1)*/
 	gcIR.addInstrToTail("push", "rbp");
 	gcIR.addInstrToTail("push", PARAM_1);
-	gcIR.addInstrToTail("call", "collectAndResize");
+	//gcIR.addInstrToTail("call", "collectAndResize");
 	gcIR.addInstrToTail("add", "8", "rsp");
 	gcIR.addInstrToTail("pop", "rbp");
-	gcIR.addInstrToTail("mov", "rax", "[rbp+8]");
+	//gcIR.addInstrToTail("mov", "rax", "[rbp+8]");
 
 	/*exit function*/
 	gcIR.addInstrToTail("LFngtLF_MAX:", "", "", InstructionList::INSTR_LABEL);
