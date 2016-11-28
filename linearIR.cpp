@@ -143,6 +143,7 @@ void setupMethodCall(InstructionList &methodLinear, string methodName, vector<st
 
 /*
  * Authors: Matt, Robert, and Ben
+ * Makes the linear IR with all generated assembly.
  */
 unordered_map<string,InstructionList &> *makeLinear() 
 {
@@ -264,8 +265,7 @@ unordered_map<string,InstructionList &> *makeLinear()
 
 /*
 * Keyboard: Forest
-* Others:
-* 
+* This function prints out the header for the assembly file. 
 */
 InstructionList &makeHeaderIR() 
 {
@@ -279,7 +279,7 @@ InstructionList &makeHeaderIR()
 
 /*
 * Author: Forest
-* Adds the entry point for the assembly
+* Adds the entry point for the assembly and initializes the garbage collector along with Main object.
 */
 InstructionList &makeEntryPointIR() 
 {
@@ -301,6 +301,7 @@ InstructionList &makeEntryPointIR()
 
 /*
 * Author: Forest
+* Makes the IR for all the classes 
 */
 InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *attributes)
 {
@@ -313,7 +314,6 @@ InstructionList &makeClassIR(Node *cls, unordered_map<string, vector<Node *>> *a
 	//classLinear->addInstrToTail("push", "rbp");
 	atCalleeEntry(*classLinear);
 
-	//TODO make space for locals
 	//set up space for local vars
 	//std::string methodName = ((Node *)feature->getChildren()[0])->value;
 	//globalSymTable->enterScope(methodName);
@@ -446,6 +446,7 @@ void objectInit(InstructionList &classLinear, string name, int tag, size_t size)
 
 /*
 * Author: Forest
+* Outputs code to make a new integer.
 */
 InstructionList &makeIntIR() 
 {
@@ -475,6 +476,7 @@ InstructionList &makeIntIR()
 
 /*
 * author: Benji
+* Outputs the code for the IO class, which is inheritable.
 */
 InstructionList &makeIOIR()
 {
@@ -497,6 +499,7 @@ InstructionList &makeIOIR()
 
 /*
 * author: Benji
+* Outputs code for the base object.
 */
 InstructionList &makeObjectIR()
 {
@@ -524,6 +527,7 @@ InstructionList &makeObjectIR()
 /*
 * author: Benji
 * others: everyone
+* Makes a new string with nothing in it.
 */
 InstructionList &makeStringIR()
 {
@@ -553,6 +557,7 @@ InstructionList &makeStringIR()
 
 /*
 * author: Benji
+* Makes a new bool which is initialized to false
 */
 InstructionList &makeBoolIR()
 {
@@ -579,7 +584,7 @@ InstructionList &makeBoolIR()
 /*
 * Keyboard: Forest
 * Others: everyone
-* 
+* Puts the virtual table into the linear IR
 */
 InstructionList &makeVTableIR() 
 {
@@ -601,7 +606,7 @@ InstructionList &makeVTableIR()
 /*
 * Keyboard: Forest
 * Others:
-* 
+* Puts the strings into the data section of the linear IR
 */
 InstructionList &makeStringsIR()
 {
@@ -630,7 +635,10 @@ InstructionList &makeStringsIR()
 }
 
 /*Built in function definitions start*/
-/* Robert */
+/* 
+ *Robert 
+ * The code to just abort whenever the user calls abort()
+ */
 InstructionList &makeAbortIR()
 {
 	InstructionList *methodLinear = new InstructionList;
@@ -660,6 +668,7 @@ InstructionList &makeAbortIR()
 
 /**
 * author: Benji
+* Adds the built-in method to get objects class name
 */
 InstructionList &makeTypeNameIR()
 {
@@ -685,7 +694,10 @@ InstructionList &makeTypeNameIR()
 	return *methodLinear;
 }
 
-/* Robert */
+/* 
+ * Robert 
+ * Does less than comparisons.
+ */
 InstructionList &makeLThandler() {
 
 	InstructionList *methodLinear = new InstructionList;
@@ -723,7 +735,10 @@ InstructionList &makeLThandler() {
 	return *methodLinear;
 }
 
-/* Robert */
+/* 
+ * Robert 
+ * Does less than or equal to 
+ */
 InstructionList &makeLTEhandler() {
 
 	InstructionList *methodLinear = new InstructionList;
@@ -761,7 +776,10 @@ InstructionList &makeLTEhandler() {
 	return *methodLinear;
 }
 
-/* Robert */
+/* 
+ * Robert 
+ * Code for the built in function copy
+ */
 InstructionList &makeCopyIR()
 {
 	//register order
@@ -805,10 +823,11 @@ InstructionList &makeCopyIR()
 }
 
 
-/*Originally written by: Forrest
+/*Originally written by: Forest
  *Rewritten by: Robert
  * Out_String was written by forrest initially so we could do testing.
  * It was rewritten by robert later
+* THis adds code to put out strings to stdout
 */
 InstructionList &makeOutStringIR()
 {
@@ -853,6 +872,7 @@ InstructionList &makeOutStringIR()
 
 /**
 * author: Benji
+* Adds code to read strings from stdin
 */
 InstructionList &makeInStringIR()
 {
@@ -901,6 +921,7 @@ InstructionList &makeInStringIR()
 /**
 * author: Benji
 * fixed: Matt
+* Adds code to print out integers.
 */
 InstructionList &makeOutIntIR()
 {
@@ -937,7 +958,10 @@ InstructionList &makeOutIntIR()
 	return *methodLinear;
 }
 
-/* Robert */
+/* 
+ * Robert 
+ * Adds code to read an integer from stdin
+ */
 InstructionList &makeInIntIR()
 {
 	//register order
@@ -998,8 +1022,9 @@ InstructionList &makeInIntIR()
 	return *methodLinear;
 }
 
-/* Check for Off By One Error
+/*
  * @author: Matt
+ * Gets the length of a C-style (what we're using) string
  */ 
 InstructionList &makeLengthIR()
 {
@@ -1055,6 +1080,7 @@ InstructionList &makeLengthIR()
 
 /*
  * @author: Matt 
+ * Built-in code to concatenate two strings together
  */
 InstructionList &makeConcatIR()
 {
@@ -1122,10 +1148,10 @@ InstructionList &makeConcatIR()
 
 /*
  * @author: Matt
+ * Built in code to get a smaller bit of the string given
  */
 InstructionList &makeSubstrIR()
 {
-	//TODO: Check if start or length is negative
 	string endGreaterThanStringEndLabel = "SUBSTR.HANDLER.EGTLENSTR";
 	string negativeValueInSubstr = "SUBSTR.HANDLER.NVIS";
 	InstructionList *methodLinear = new InstructionList;
@@ -1164,9 +1190,6 @@ InstructionList &makeSubstrIR()
 	methodLinear->addInstrToTail("pop", "r8");
 	methodLinear->addInstrToTail("cmp", "r15", "r8");
 	methodLinear->addInstrToTail("jg", endGreaterThanStringEndLabel);
-
-	//CHECK IF NEED TO SAVE LENGTH OF ORIGINAL STRING - I DON'T THINK SO, BUT IF you do uncomment the next line.'
-	//methodLinear->addInstrToTail("push", "r15");
 
 	/*Get address of string and add param1's int value*/
 	methodLinear->addInstrToTail("pop", "r9");
@@ -1210,6 +1233,7 @@ InstructionList &makeSubstrIR()
 
 /*
  * @author: Matt 
+ * Boilerplate code for method entry
  */
 void atCalleeEntry(InstructionList &methodLinear)
 {
@@ -1218,6 +1242,7 @@ void atCalleeEntry(InstructionList &methodLinear)
 
 /*
  * @author: Matt 
+ * Boilerplate code for method exit
  */
 void atCalleeExit(InstructionList &methodLinear)
 {
@@ -1227,6 +1252,7 @@ void atCalleeExit(InstructionList &methodLinear)
 
 /*
  * @author: Matt 
+ * Boilerplate code for getting a parameter into a register
  */
 void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut, int numFormals)
 {
@@ -1240,6 +1266,7 @@ void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, str
 
 /*
  * @author: Matt 
+ * Boilerplate code for calling calloc
  */
 void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement)
 {
@@ -1251,6 +1278,7 @@ void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, stri
 
 /*
  * @author: Mostly Robert, with a touch of Matt 
+ * Boilerplate code for adding an error handler
  */
 void errorHandlerDoExit(InstructionList &methodLinear, string label, string error)
 {
@@ -1281,6 +1309,7 @@ void errorHandlerDoExit(InstructionList &methodLinear, string label, string erro
 
 /*
 * Author: Matt, Robert, Ben
+* Starts off the linear IR for each method
 */
 InstructionList &makeMethodIR(Node *feat) 
 {
@@ -1305,6 +1334,7 @@ InstructionList &makeMethodIR(Node *feat)
 
 /*
 * Author: Matt, Robert, Ben
+* Method init code
 */
 void methodInit(InstructionList &methodLinear, Node *feature)
 {
@@ -1313,7 +1343,6 @@ void methodInit(InstructionList &methodLinear, Node *feature)
 	methodLinear.addComment("start method");
 	methodLinear.addInstrToTail("mov", "rsp", "rbp");
 
-	//TODO: Improve local variables so we don't have to allocate space for all of them at the same time
 	//set up space for local vars
 	std::string methodName = ((Node *)feature->getChildren()[0])->value;
 	globalSymTable->enterScope(methodName);
@@ -1337,6 +1366,7 @@ void methodInit(InstructionList &methodLinear, Node *feature)
 
 /*
 * Author: Matt, Robert, Ben
+* Method exit code
 */
 void methodExit(InstructionList &methodLinear, Node *feature)
 {
@@ -1357,6 +1387,7 @@ void methodExit(InstructionList &methodLinear, Node *feature)
 
 /*
 * Author: Matt, Robert, Ben
+* Calls the corect code generation function based on AST type
 */
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 {
@@ -1444,6 +1475,7 @@ void makeExprIR_recursive(InstructionList &methodLinear, Node *expression)
 * Keyboard: Ben
 * Others: everyone
 * Was changed significantly (aka obsolete now)
+* Makes a new object.
 */
 inline void makeNew(InstructionList &methodLinear, string valType)
 {
@@ -1453,7 +1485,7 @@ inline void makeNew(InstructionList &methodLinear, string valType)
 /*
 * Keyboard: Ben
 * Others: Everyone
-* 
+* Code to get an identifier from self or the stack.
 */
 void doIdentifier(InstructionList &methodLinear, Node *expression)
 {
@@ -1489,6 +1521,7 @@ void doIdentifier(InstructionList &methodLinear, Node *expression)
 
 /*
 * Author: Matt, Robert, Ben
+* Makes a new integer literal.
 */
 void doIntLiteral(InstructionList &methodLinear, Node *expression)
 {
@@ -1507,6 +1540,7 @@ void doIntLiteral(InstructionList &methodLinear, Node *expression)
 
 /*
 * Author: Matt, Robert, Ben
+* Generates code to add ints.
 */
 void doPlus(InstructionList &methodLinear, Node *expression)
 {
@@ -1529,7 +1563,6 @@ void doPlus(InstructionList &methodLinear, Node *expression)
 	//temporaries for add instruction
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
-	//TODO: check the 'PTR' part
 	methodLinear.addInstrToTail("add", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
 
 	//move result into new object
@@ -1540,6 +1573,7 @@ void doPlus(InstructionList &methodLinear, Node *expression)
 
 /*
 * Author: Matt, Robert, Ben
+* Generates code to subtract ints.
 */
 void doMinus(InstructionList &methodLinear, Node *expression)
 {
@@ -1562,7 +1596,6 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 	//temporaries for add instruction
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
-	//TODO: check the 'PTR' part
 	methodLinear.addInstrToTail("sub","DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
 
 	//move result into new object
@@ -1573,6 +1606,7 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 
 /*
 * Author: Matt, Robert, Ben
+* Generates code to multiply ints.
 */
 void doMultiply(InstructionList &methodLinear, Node *expression)
 {
@@ -1595,7 +1629,6 @@ void doMultiply(InstructionList &methodLinear, Node *expression)
 	//temporaries for add instruction
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
-	//TODO: check the 'PTR' part
 	methodLinear.addInstrToTail("imul", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
 
 	//move result into new object
@@ -1607,6 +1640,7 @@ void doMultiply(InstructionList &methodLinear, Node *expression)
 
 /*
 * Author: Matt, Robert, Ben
+* Generates code to divide ints.
 */
 void doDivide(InstructionList &methodLinear, Node *expression)
 {
@@ -1649,6 +1683,7 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 
 /*
 * Forest, Benji, Robert, Ben, Matt
+* Generates code to make a new boolean with specific value.
 */
 void doBool(InstructionList &methodLinear, Node *expression, bool val)
 {
@@ -1667,6 +1702,7 @@ void doBool(InstructionList &methodLinear, Node *expression, bool val)
 
 /*
 * Forest, Benji, Robert, Ben, Matt
+* Generates code to compare 2 integers using LT.
 */
 void doLessThan(InstructionList &methodLinear, Node *expression)
 {
@@ -1683,7 +1719,6 @@ void doLessThan(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r13");
 	methodLinear.addInstrToTail("pop", "r12");
 
-	//TODO: write lessthan handler
 	setupMethodCall(methodLinear, "LT..Handler", { "r13", "r12" });
 
 	methodLinear.addInstrToTail("push", "r15");
@@ -1691,6 +1726,7 @@ void doLessThan(InstructionList &methodLinear, Node *expression)
 
 /*
 * Forest, Benji, Robert, Ben, Matt
+* Generates code to compare 2 ints using LTE.
 */
 void doLessThanEqual(InstructionList &methodLinear, Node *expression)
 {
@@ -1707,7 +1743,6 @@ void doLessThanEqual(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r13");
 	methodLinear.addInstrToTail("pop", "r12");
 
-	//TODO: write lessthanEqual handler
 	setupMethodCall(methodLinear, "LTE..Handler", { "r13", "r12" });
 
 	methodLinear.addInstrToTail("push", "r15");
@@ -1715,6 +1750,7 @@ void doLessThanEqual(InstructionList &methodLinear, Node *expression)
 
 /*
 * Forest, Benji, Robert, Ben, Matt
+* Generates code to compare if objects are equal (by value for primitives, by pointer for objects).
 */
 void doEqual(InstructionList &methodLinear, Node *expression)
 {
@@ -1738,6 +1774,7 @@ void doEqual(InstructionList &methodLinear, Node *expression)
 
 /*
  * Forest, Benji, Robert, Ben, Matt
+ * Makes a new string with a certain value.
  */
 void doString(InstructionList &methodLinear, Node *expression)
 {
@@ -1763,6 +1800,7 @@ void doString(InstructionList &methodLinear, Node *expression)
 
 /*
 * Forest, Benji, Robert, Ben, Matt
+* twos complement's the value of an integer
 */
 void doTilde(InstructionList &methodLinear, Node *expression)
 {
@@ -1832,6 +1870,7 @@ void doNot(InstructionList &methodLinear, Node *expression)
 
 /*
 * Forest, Benji, Robert, Ben, Matt
+* Does block expressions
 */
 void doExprSemiList(InstructionList &methodLinear, Node *expression)
 {
@@ -1854,6 +1893,7 @@ void doExprSemiList(InstructionList &methodLinear, Node *expression)
 
 /*
 * Forest, Benji, Robert, Ben, Matt
+* Makes a new object of some type
 */
 void doNew(InstructionList &methodLinear, Node *expression)
 {
@@ -1866,6 +1906,7 @@ void doNew(InstructionList &methodLinear, Node *expression)
 
 /*
 * Forest, Benji, Robert, Ben, Matt
+* Code for builting function isvoid
 */
 void doIsVoid(InstructionList &methodLinear, Node *expression)
 {
@@ -1892,6 +1933,7 @@ void doIsVoid(InstructionList &methodLinear, Node *expression)
 
 /*
 * Forest, Benji, Robert, Ben, Matt
+* Code to do While loops
 */
 void doWhile(InstructionList &methodLinear, Node *expression) {
 	int countSave = whileLabelCount;
@@ -1928,7 +1970,7 @@ void doWhile(InstructionList &methodLinear, Node *expression) {
 /*
 * Keyboard: Robert
 * Others: everyone
-* 
+* Code to see which way an if is taken.
 */
 void doIf(InstructionList &methodLinear, Node *expression) {
 	int countSave = ifLabelCount;
@@ -1966,7 +2008,7 @@ void doIf(InstructionList &methodLinear, Node *expression) {
 /*
 * Keyboard: Matt
 * Others: everyone
-* 
+* Assigns a value from the right to the place on the left
 */
 void doAssign(InstructionList &methodLinear, Node *expression)
 {
@@ -2012,7 +2054,7 @@ void doAssign(InstructionList &methodLinear, Node *expression)
 /*
 * Keyboard: Ben
 * Others: everyone
-* 
+* Initializes a variable and allows its use within a certain scope.
 */
 void doLet(InstructionList &methodLinear, Node *expression)
 {
@@ -2066,7 +2108,7 @@ void doLet(InstructionList &methodLinear, Node *expression)
 /*
 * Keyboard: Forest
 * Others:
-* 
+* Allows for calls to user/builtin functions
 */
 void doDispatch(InstructionList &methodLinear, Node *expression)
 {
@@ -2080,7 +2122,6 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 	methodLinear.addComment("Start of call to method " + method->value);
 
 	//evaluate parameters left to right (cool manual p27)
-	//TODO: optimize for low number of inputs
 	children = exprs->getChildren();
 	int params = children.size();
 	Node *chld;
@@ -2140,7 +2181,8 @@ void doDispatch(InstructionList &methodLinear, Node *expression)
 }
 
 /*
-* 
+*  Author: Forest
+* Error case for dispatch
 */
 InstructionList &makeDispatchErrorIR() 
 {
@@ -2153,6 +2195,7 @@ InstructionList &makeDispatchErrorIR()
 
 /*
 * Authors: Forest, Ben
+* Takes care of case statements and their multiple branches.
 */
 void doCaseStatement(InstructionList &methodLinear, Node *expression)
 {
@@ -2256,7 +2299,7 @@ void doCaseStatement(InstructionList &methodLinear, Node *expression)
 }
 
 /*
-* 
+* @Author Ben and Forrest
 */
 InstructionList &makeCaseErrorIR() 
 {
@@ -2266,6 +2309,10 @@ InstructionList &makeCaseErrorIR()
 	return *caseErr;
 }
 
+/*
+* @Author Ben and Forrest
+* Divide by zero error case.
+*/
 InstructionList &makeDivZeroErorIR()
 {
 	InstructionList *divZeroErr = new InstructionList;
@@ -2275,7 +2322,8 @@ InstructionList &makeDivZeroErorIR()
 }
 
 /*
-* 
+* @Author Ben and Forrest
+* Can't find the type of a void pointer, so error
 */
 InstructionList &makeCaseVoidErrorIR() 
 {
@@ -2288,7 +2336,7 @@ InstructionList &makeCaseVoidErrorIR()
 /*
 * Keyboard: Ben
 * Others: Matt, Robert, Forest
-* 
+* Makes code to call a method with the right parameters.
 */
 //call with arguments rights to left ex: func(a, b, c) would be: setupMethodCall( , , <c, b, a>)
 void setupMethodCall(InstructionList &methodLinear, string methodName, vector<string> formals)
@@ -2308,6 +2356,7 @@ void setupMethodCall(InstructionList &methodLinear, string methodName, vector<st
 /*
 * keyboard: Forest
 * room: everyone
+* Handles seeing if objects are equal.
 */
 InstructionList &makeEQhandler()
 {
