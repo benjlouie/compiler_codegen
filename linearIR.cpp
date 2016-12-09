@@ -1592,7 +1592,8 @@ void doPlus(InstructionList &methodLinear, Node *expression)
 
 /*
 * Author: Matt, Robert, Ben
-* Generates code to subtract ints.
+* Generates code to add ints.
+* EDITED TO DO STRENGTH REDUCTION BY ROBERT
 */
 void doMinus(InstructionList &methodLinear, Node *expression)
 {
@@ -1639,7 +1640,8 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 
 /*
 * Author: Matt, Robert, Ben
-* Generates code to multiply ints.
+* Generates code to add ints.
+* EDITED TO DO STRENGTH REDUCTION BY ROBERT
 */
 void doMultiply(InstructionList &methodLinear, Node *expression)
 {
@@ -1707,6 +1709,7 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 	auto children = expression->getChildren();
 	makeExprIR_recursive(methodLinear, (Node *)children[0]);
 	makeExprIR_recursive(methodLinear, (Node *)children[1]);
+	int child2int = stoi((((Node *)children[1])->value));
 
 	//at the very end
 	//pop, pop, divide, push
@@ -1717,7 +1720,7 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 	makeNew(methodLinear, expression->valType);
 
 	//get the two values
-	methodLinear.addInstrToTail("pop", "r13");
+	methodLinear.addInstrToTail("pop", "r13"); //if r13 is pow 2 then reduce
 	methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rbx");
 
 	//compare the divisor to 0. If it is equal to or less than, error.
@@ -1728,12 +1731,20 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r12");
 	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "rax");
 
-	//clear edg
-	methodLinear.addInstrToTail("xor", "rdx", "rdx");
+	//if r13 is power of 2
+	if (strengthreduce && !(child2int & (child2int - 1))) {
+		int twopow = (int)log2(child2int);
+		methodLinear.addInstrToTail("xor", "rdx", "rdx");
+		methodLinear.addInstrToTail("shr", std::to_string(twopow), "rax");
+		methodLinear.addInstrToTail("mov", "rax", "r14]");
+	}
+	// no strength reduction
+	else {
+		methodLinear.addInstrToTail("xor", "rdx", "rdx");
+		methodLinear.addInstrToTail("idiv", "ebx");
+		methodLinear.addInstrToTail("mov", "rax", "r14");
+	}
 
-	//result in rax
-	methodLinear.addInstrToTail("idiv", "ebx");
-	methodLinear.addInstrToTail("mov","rax","r14");
 	//put div result in Int
 	methodLinear.addInstrToTail("mov", "r14", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 
