@@ -11,7 +11,9 @@ void InstructionList::addInstrToTail(Instruction instr) {
 
 void InstructionList::addInstrToTail(std::string instr, std::string src, std::string dest, ExtraInstrData extraData) {
 	Instruction inst;
+
 	inst.set(instr, src, dest, extraData);
+	
 	this->addInstrToTail(inst);
 }
 
