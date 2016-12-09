@@ -1572,10 +1572,28 @@ void doPlus(InstructionList &methodLinear, Node *expression)
 		methodLinear.addInstrToTail("inc", "r10");
 		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 	}
+	//if both operands are the same number we instead do a multiply by 2 which is a shift
+	else if (strengthreduce && ((Node *)children[0])->value == ((Node *)children[1])->value) {
+		methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("shl", "1", "r10");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	//if r12 is -1
+	else if (strengthreduce && ((Node *)children[0])->value == "1") {
+		methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("dec", "r10");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
 	//if r13 is 1
 	else if (strengthreduce && ((Node *)children[1])->value == "1") {
 		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 		methodLinear.addInstrToTail("inc", "r10");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	//if r13 is -1
+	else if (strengthreduce && ((Node *)children[1])->value == "1") {
+		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("dec", "r10");
 		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 	}
 	// no strength reduction
@@ -1616,16 +1634,22 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 	//temporaries for add instruction
 	//methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
-	//if r12 is 1
-	if (strengthreduce && ((Node *)children[0])->value == "1") {
-		methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+	
+	//if r13 is 1
+	if (strengthreduce && ((Node *)children[1])->value == "1") {
+		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 		methodLinear.addInstrToTail("dec", "r10");
 		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 	}
-	//if r13 is 1
-	else if (strengthreduce && ((Node *)children[1])->value == "1") {
+	//if both operands are the same number we instead return a 0
+	else if (strengthreduce && ((Node *)children[0])->value == ((Node *)children[1])->value) {
+		methodLinear.addInstrToTail("xor", "r10", "r10");
+		methodLinear.addInstrToTail("mov", "0", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	//if r13 is -1
+	else if (strengthreduce && ((Node *)children[1])->value == "-1") {
 		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
-		methodLinear.addInstrToTail("dec", "r10");
+		methodLinear.addInstrToTail("inc", "r10");
 		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 	}
 	// no strength reduction
