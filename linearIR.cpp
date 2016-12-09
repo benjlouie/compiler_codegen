@@ -1631,7 +1631,7 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 	// no strength reduction
 	else {
 		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
-		methodLinear.addInstrToTail("add", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
+		methodLinear.addInstrToTail("sub", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
 		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 	}
 
@@ -1736,7 +1736,7 @@ void doDivide(InstructionList &methodLinear, Node *expression)
 		int twopow = (int)log2(child2int);
 		methodLinear.addInstrToTail("xor", "rdx", "rdx");
 		methodLinear.addInstrToTail("shr", std::to_string(twopow), "rax");
-		methodLinear.addInstrToTail("mov", "rax", "r14]");
+		methodLinear.addInstrToTail("mov", "rax", "r14");
 	}
 	// no strength reduction
 	else {
