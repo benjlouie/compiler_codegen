@@ -3,6 +3,10 @@
 #include <fstream>
 #include<vector>
 #include<string>
+#include<cmath>
+
+extern bool strengthreduce;
+
 using namespace std;
 
 class InstructionList
