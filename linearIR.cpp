@@ -1541,12 +1541,15 @@ void doIntLiteral(InstructionList &methodLinear, Node *expression)
 /*
 * Author: Matt, Robert, Ben
 * Generates code to add ints.
+* EDITED TO DO STRENGTH REDUCTION BY ROBERT
 */
 void doPlus(InstructionList &methodLinear, Node *expression)
 {
 	auto children = expression->getChildren();
 	makeExprIR_recursive(methodLinear, (Node *)children[0]);
 	makeExprIR_recursive(methodLinear, (Node *)children[1]);
+
+	
 
 	//at the very end
 	//pop, pop, add, push
@@ -1561,12 +1564,28 @@ void doPlus(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r12");
 
 	//temporaries for add instruction
-	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+	//methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
-	methodLinear.addInstrToTail("add", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
+	//if r12 is 1
+	if (strengthreduce && ((Node *)children[0])->value == "1") {
+		methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("inc", "r10");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	//if r13 is 1
+	else if (strengthreduce && ((Node *)children[1])->value == "1") {
+		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("inc", "r10");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	// no strength reduction
+	else {
+		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("add", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
 
-	//move result into new object
-	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+
 
 	methodLinear.addInstrToTail("push", "r15");
 }
@@ -1594,12 +1613,26 @@ void doMinus(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r12");
 
 	//temporaries for add instruction
-	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+	//methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
 
-	methodLinear.addInstrToTail("sub","DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
-
-	//move result into new object
-	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	//if r12 is 1
+	if (strengthreduce && ((Node *)children[0])->value == "1") {
+		methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("dec", "r10");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	//if r13 is 1
+	else if (strengthreduce && ((Node *)children[1])->value == "1") {
+		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("dec", "r10");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	// no strength reduction
+	else {
+		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("add", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
 
 	methodLinear.addInstrToTail("push", "r15");
 }
@@ -1613,6 +1646,8 @@ void doMultiply(InstructionList &methodLinear, Node *expression)
 	auto children = expression->getChildren();
 	makeExprIR_recursive(methodLinear, (Node *)children[0]);
 	makeExprIR_recursive(methodLinear, (Node *)children[1]);
+	int child1int = stoi((((Node *)children[0])->value));
+	int child2int = stoi((((Node *)children[1])->value));
 
 	//at the very end
 	//pop, pop, multiply, push
@@ -1627,12 +1662,37 @@ void doMultiply(InstructionList &methodLinear, Node *expression)
 	methodLinear.addInstrToTail("pop", "r12");
 
 	//temporaries for add instruction
-	methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+	//if either r12 or r13 is 0
+	if (strengthreduce &&  (  ((Node *)children[0])->value == "0" || ((Node *)children[1])->value == "0" )   ) {
+		methodLinear.addInstrToTail("mov", "0", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	//if r12 is power of 2
+	else if (strengthreduce && !(child1int & (child1int-1))) {
+		int twopow = (int)log2(child1int);
+		methodLinear.addInstrToTail("mov", "[r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("shl", std::to_string(twopow), "r10");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	//if r13 is power of 2
+	else if (strengthreduce && !(child2int & (child2int - 1)) ) {
+		int twopow = (int)log2(child2int);
+		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("shl", std::to_string(twopow), "r10");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
+	// no strength reduction
+	else {
+		methodLinear.addInstrToTail("mov", "[r12+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10");
+		methodLinear.addInstrToTail("imul", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
+		methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	}
 
-	methodLinear.addInstrToTail("imul", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
+	
+
+	//methodLinear.addInstrToTail("imul", "DWORD PTR [r13+" + std::to_string(DEFAULT_VAR_OFFSET) + "]", "r10D");
 
 	//move result into new object
-	methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
+	//methodLinear.addInstrToTail("mov", "r10", "[r15+" + std::to_string(DEFAULT_VAR_OFFSET) + "]");
 
 	methodLinear.addInstrToTail("push", "r15");
 	
