@@ -11,7 +11,48 @@ void InstructionList::addInstrToTail(Instruction instr) {
 
 void InstructionList::addInstrToTail(std::string instr, std::string src, std::string dest, ExtraInstrData extraData) {
 	Instruction inst;
-	inst.set(instr, src, dest, extraData);
+	if (strengthreduce) {
+		int src_int = 0;
+		float src_flt = 0;
+		int twopow = 0;
+		src_int = atoi(src.c_str());
+		src_flt = (float)src_int;
+
+		//if add
+		if (instr == "add" && src == "1") {
+			inst.set("inc", "", dest, extraData);
+		}
+
+		//if subtract
+		else if (instr == "sub" && src == "1") {
+			inst.set("dec", "", dest, extraData);
+		}
+
+		//if mult by 0
+		else if (instr == "imul" && src == "0") {
+			inst.set("xor", dest, dest, extraData);
+		}
+
+		//if mult
+		else if (instr == "imul" && !(src_int & (src_int - 1))) {
+			twopow = (int)log2(src_flt);
+			inst.set("shl", std::to_string(twopow), dest, extraData);
+		}
+
+		//if divide
+		else if (instr == "div" && src != "0" & !(src_int & (src_int - 1))) {
+			twopow = (int)log2(src_flt);
+			inst.set("shr", std::to_string(twopow), dest, extraData);
+		}
+
+		//if no reduction possible
+		else {
+			inst.set(instr, src, dest, extraData);
+		}
+	}
+	else {
+		inst.set(instr, src, dest, extraData);
+	}
 	this->addInstrToTail(inst);
 }
 
