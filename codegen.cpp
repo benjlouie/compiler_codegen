@@ -33,7 +33,8 @@ void code(fstream &outfile)
 		outfile << it->first << ":\n";
 		it->second.printIR(outfile);
 	}
-       
+    
+	makeGarbageCollectorIR().printIR(outfile);
     //highLevelInstrSelection();
 
     //printAssembly();

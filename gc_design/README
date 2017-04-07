@@ -1,0 +1,62 @@
+Garbage collection
+
+The algorithm works as follows:
+Whenever we call malloc or calloc we add
+that reference to the hash_table which
+keeps track of every dynamic memory
+allocation we do.
+
+Once the table's load factor becomes too
+high, we need to rebalance it. In the
+clear unreachable data.
+
+To do this, we need to keep track of
+three different colors.
+
+White: These colors have no currently
+known reference to them.
+
+Grey: These colors have a known reference
+to them, but we still need to check if
+they contain further references to
+other objects that are marked white.
+
+Black: These colors have been checked,
+and any memory address they reference
+must be grey.
+
+When we collect, we find which objects
+are grey. This is currently done
+by examining the entire working set
+(i.e. all registers and everything on the
+stack). We mark anything that has
+a direct reference to it as grey.
+
+After we find our direct references,
+we must find anything that they reference.
+So we set the color of the object we're looking
+at to black, then anything it references to grey.
+
+We repeat this until our grey set is empty,
+thus finding every reachable reference. 
+Once we do this, we create a new table
+which should be larger than the last.
+
+When we have this new table, we need to
+transfer all the black references to it.
+
+Once we transfer all those references, we
+now know that every reference in the old
+table is unreachable, we free all memory
+associated with that table.
+
+On exit, we free everything in our table,
+then the table itself.
+
+-------------------------------------------------
+This algorithm was implemented in garbage.c
+There were errors when translating it to
+assembly, and thus does not work in the
+full compiler. It will still allow for
+keeping track of all memory addresses, and
+freeing everything on the program exit.

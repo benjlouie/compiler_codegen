@@ -104,12 +104,6 @@ InstructionList &makeDivZeroErorIR();
 InstructionList &makeCaseVoidErrorIR();
 InstructionList &makeDispatchErrorIR();
 
-/*Some helper functions*/
-void atCalleeExit(InstructionList &methodLinear);
-void atCalleeEntry(InstructionList &methodLinear);
-void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut, int numFormals);
-void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement);
-void errorHandlerDoExit(InstructionList &methodLinear, string label, string error);
 
 void makeNew(InstructionList &methodLinear, string valType);
 void makeExprIR_recursive(InstructionList &methodLinear, Node *expression);
@@ -287,11 +281,25 @@ InstructionList &makeEntryPointIR()
 
 	entry->addNewNode();
 	entry->addComment("Start point of the program");
+	/*save top of stack in a global*/
+	entry->addInstrToTail("mov", "rsp", "tos[rip]");
+	/*Initialize the garbage collector*/
+	entry->addInstrToTail("push", "rbp");
+	entry->addInstrToTail("push", "128");
+	entry->addInstrToTail("call", "initGC");
+	entry->addInstrToTail("add", "8", "rsp");
+	entry->addInstrToTail("pop", "rbp");
+	entry->addInstrToTail("mov", "rax", "gc[rip]"); //move return value to the global for garbage collector
+
 	makeNew(*entry, "Main");
 
 	//call Main.main()
 	setupMethodCall(*entry, "Main.main", { "r15" });
 	
+	/*cleanup all memory*/
+	entry->addInstrToTail("push", "gc[rip]");
+	entry->addInstrToTail("call", "clearAll");
+
 	//return 0 for successful execution
 	entry->addInstrToTail("mov", "0", "rdi");
 	entry->addInstrToTail("call", "exit");
@@ -422,7 +430,7 @@ void objectInit(InstructionList &classLinear, string name, int tag, size_t size)
 	//allocate memory
 	classLinear.addNewNode();
 	classLinear.addComment("Allocate memory, and place into rbp + 8");
-	callCalloc(classLinear, to_string(size), "8");
+	callCalloc(classLinear, to_string(size), "8", OBJECT_TYPE);
 	classLinear.addInstrToTail("mov", "rax", "[rbp + 8]");
 
 	//move pointer to our object to r12
@@ -630,6 +638,9 @@ InstructionList &makeStringsIR()
 		stringIR->addInstrToTail(".string", "\"" + name + "\"");
 	}
 
+	/*add globals for garbage collection*/
+	stringIR->addInstrToTail(".comm", "gc,8,8");
+	stringIR->addInstrToTail(".comm", "tos,8,8");
 
 	return *stringIR;
 }
@@ -798,9 +809,8 @@ InstructionList &makeCopyIR()
 	//during the call to callc rdx would be destroyed so I use r13 to hold for now	//															  *
 	methodLinear->addInstrToTail("mov", "[rbp+8]", "r13");							//	move int object from stack into rax						  * 
 	methodLinear->addInstrToTail("mov", "[r13+8]", "r13");							//	move int (size of object to make) value into r13		  *
-	methodLinear->addInstrToTail("imul", "8", "r13");
 																					//															  *
-	callCalloc(*methodLinear, "1", "r13");																					//  call calloc with int * 8 so that we get 8*size in bytes	  *											
+	callCalloc(*methodLinear, "r13", "8", OBJECT_TYPE);								//  call calloc with int * 8 so that we get 8*size in bytes	  *
 																					//	 --PREPARE FOR MEMCPY--									  *
 	methodLinear->addInstrToTail("mov", "rax", "rdi");								//	move pointer returned by calloc into rdi				  *
 																					//															  *
@@ -892,10 +902,7 @@ InstructionList &makeInStringIR()
 	methodLinear->addInstrToTail("call", "String..new");	
 	methodLinear->addInstrToTail("add", "8","rsp");
 	methodLinear->addInstrToTail("pop", "rbp");
-	//methodLinear->addInstrToTail("mov", "1","rdi");
-	//methodLinear->addInstrToTail("mov", bufSize,"rsi");
-	//methodLinear->addInstrToTail("call", "calloc");
-	callCalloc(*methodLinear,"1",bufSize);
+	callCalloc(*methodLinear,"1",bufSize, PRIMITIVE_TYPE);
 	methodLinear->addInstrToTail("push", "rax");
 	methodLinear->addInstrToTail("mov", "rax","rdi");
 	methodLinear->addInstrToTail("mov", bufSize,"rsi");
@@ -908,8 +915,8 @@ InstructionList &makeInStringIR()
 	methodLinear->addInstrToTail("lea", ".string" + std::to_string(stringNum),"rsi");
 	methodLinear->addInstrToTail("call", "sscanf");
 	methodLinear->addInstrToTail("pop", "rax");
-	methodLinear->addInstrToTail("mov", "rax","[r15+24]");
-
+	//call to fgets
+	methodLinear->addInstrToTail("mov", "rax", "[r15+" + to_string(DEFAULT_VAR_OFFSET) + "]");
 
 
 	//return value already in r15 from making new string above
@@ -986,7 +993,7 @@ InstructionList &makeInIntIR()
 	makeNew(*methodLinear, "Int");												//	make new integer									*
 																				//														*
 	//calloc 16 bytes of memory for fgets										//														*
-	callCalloc(*methodLinear, "1", bufSize); 									//	call calloc											*
+	callCalloc(*methodLinear, bufSize, "1", PRIMITIVE_TYPE);
 																				//														*
 	//save memory pointer from calloc for later									//														*
 	methodLinear->addInstrToTail("push", "rax");								//	save pointer to callod'c memory for later			*
@@ -1113,7 +1120,7 @@ InstructionList &makeConcatIR()
 	methodLinear->addInstrToTail("inc", "r10");
 
 	/*make space for final string*/
-	callCalloc(*methodLinear, "r10", "1");
+	callCalloc(*methodLinear, "r10", "1", PRIMITIVE_TYPE);
 
 	/*copy in self*/
 	methodLinear->addInstrToTail("push", "rax");
@@ -1201,7 +1208,7 @@ InstructionList &makeSubstrIR()
 	/*make space the size of param2 + 1*/
 	methodLinear->addInstrToTail("push", "r8");
 	methodLinear->addInstrToTail("inc", "r8");
-	callCalloc(*methodLinear, "r8", "1");
+	callCalloc(*methodLinear, "r8", "1", PRIMITIVE_TYPE);
 
 	/*memcpy size of param2 + 1 into new space*/
 	methodLinear->addInstrToTail("mov", "rax", "rdi");
@@ -1268,12 +1275,24 @@ void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, str
  * @author: Matt 
  * Boilerplate code for calling calloc
  */
-void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement)
+void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement, string type)
 {
 	methodLinear.addInstrToTail("mov", paramHoldNumElements, "rdi");
 	methodLinear.addInstrToTail("mov", paramHoldSizeOfEachElement, "rsi");
 
 	methodLinear.addInstrToTail("call", "calloc");
+
+	/*keep track of newly allocated memory rax should still contain memory alloc'd afterwards*/
+	methodLinear.addInstrToTail("push", "rbp");
+	methodLinear.addInstrToTail("push", type);
+	methodLinear.addInstrToTail("push", "rax");
+	methodLinear.addInstrToTail("push", "gc[rip]");
+	methodLinear.addInstrToTail("call", "addRef");
+	methodLinear.addInstrToTail("mov", "rax", "gc[rip]");
+	methodLinear.addInstrToTail("add", "8", "rsp");
+	methodLinear.addInstrToTail("pop", "rax");
+	methodLinear.addInstrToTail("add", "8", "rsp");
+	methodLinear.addInstrToTail("pop", "rbp");
 }
 
 /*

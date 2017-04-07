@@ -10,6 +10,8 @@
 #include "vTable.h"
 
 #define DEFAULT_VAR_OFFSET 24
+#define OBJECT_TYPE "0"
+#define PRIMITIVE_TYPE "1"
 
 extern int numErrors;
 extern Node *root;
@@ -23,3 +25,10 @@ extern vTable *globalVTable;
 
 
 unordered_map<string,InstructionList &> *makeLinear();
+
+/*Some helper functions*/
+void atCalleeExit(InstructionList &methodLinear);
+void atCalleeEntry(InstructionList &methodLinear);
+void getMethodParamIntoRegister(InstructionList &methodLinear, int numParam, string placeToPut, int numFormals);
+void callCalloc(InstructionList &methodLinear, string paramHoldNumElements, string paramHoldSizeOfEachElement, string type);
+void errorHandlerDoExit(InstructionList &methodLinear, string label, string error);
